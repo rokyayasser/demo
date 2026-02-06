@@ -1,0 +1,20 @@
+@import url("https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&family=Outfit:wght@100..900&display=swap");
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #6d28d9; /* Rich Violet */
+  --color-secondary: #a78bfa; /* Bright Amethyst */
+  --color-accent: #ddd6fe; /* Pale Periwinkle */
+  --color-lightBg: #f5f3ff; /* Soft Violet Background */
+  --color-textMain: #1e1b4b; /* Deep Indigo Text */
+  --color-textSoft: #6d7280; /* Cool Gray-Purple */
+  --color-borderLight: #c4b5fd; /* Soft Purple Border */
+}
+
+::-webkit-scrollbar {
+  @apply hidden;
+}
+
+* {
+  font-family: Outfit;
+}
