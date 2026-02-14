@@ -16,6 +16,7 @@ import AppointmentForm from "../../components/appointment/AppointmentForm";
 import TimeSlots from "../../components/appointment/TimeSlots";
 import ServiceDetails from "../../components/appointment/ServiceDetails";
 import Calendar from "../../components/appointment/Calender";
+
 const Appointment = () => {
   const { serviceId } = useParams();
   const navigate = useNavigate();
@@ -46,6 +47,7 @@ const Appointment = () => {
         // Fetch service info
         const serviceData = await getServiceById(serviceId);
         console.log("Service data fetched:", serviceData);
+
         // Fetch booked slots with improved error handling
         let bookedSlots = {};
         let blockedSlots = {};
@@ -60,7 +62,7 @@ const Appointment = () => {
             console.warn("Slots API returned failure:", slotsData.message);
             slotsError = slotsData.message || "Failed to load slots";
           } else {
-            // Handle both response structures
+            // Handle both response structures (BaseController wraps in data)
             bookedSlots =
               slotsData.bookedSlots || slotsData.data?.bookedSlots || {};
             blockedSlots =
@@ -69,7 +71,6 @@ const Appointment = () => {
         } catch (error) {
           console.warn("Error fetching slots:", error.message);
           slotsError = error.message;
-          // Use empty data as fallback
         }
 
         setState((prev) => ({
@@ -106,7 +107,6 @@ const Appointment = () => {
   };
 
   // Handle time selection
-  // In TimeSlots.jsx or your appointment page component
   const handleTimeSelect = async (time) => {
     if (!state.selectedDate) {
       toast.error("يرجى اختيار التاريخ أولاً");
@@ -154,12 +154,20 @@ const Appointment = () => {
         numericTime
       );
 
+      console.log("Check slot response:", checkResponse);
+
       if (checkResponse && checkResponse.success === false) {
         toast.error(checkResponse.message || "هذا الموعد غير متاح");
         return;
       }
 
-      if (checkResponse && !checkResponse.isAvailable) {
+      // FIX: BaseController.success() wraps everything in `data`
+      // API returns: { success: true, data: { isAvailable: true, ... } }
+      // So read from checkResponse.data.isAvailable, with fallback to top-level
+      const isAvailable =
+        checkResponse?.data?.isAvailable ?? checkResponse?.isAvailable;
+
+      if (isAvailable === false) {
         toast.error("هذا الموعد محجوز بالفعل. يرجى اختيار موعد آخر.");
         return;
       }
@@ -173,8 +181,6 @@ const Appointment = () => {
       toast.error("حدث خطأ في التحقق من توفر الموعد");
     }
   };
-
-  // Helper function to convert Arabic time to numeric
 
   // Handle booking confirmation
   const handleConfirmBooking = () => {
@@ -243,19 +249,19 @@ const Appointment = () => {
           state.selectedDate
         );
         if (response && response.success) {
-          // Update slots based on available slots response
           const updatedBookedSlots = { ...state.bookedSlots };
           const updatedBlockedSlots = { ...state.blockedSlots };
 
-          const bookedTimes =
-            response.slots
-              ?.filter((slot) => slot.isBooked)
-              .map((slot) => slot.time) || [];
+          // Handle BaseController wrapping: response.data.slots or response.slots
+          const slots = response.data?.slots || response.slots || [];
 
-          const blockedTimes =
-            response.slots
-              ?.filter((slot) => slot.isBlocked)
-              .map((slot) => slot.time) || [];
+          const bookedTimes = slots
+            .filter((slot) => slot.isBooked)
+            .map((slot) => slot.time);
+
+          const blockedTimes = slots
+            .filter((slot) => slot.isBlocked)
+            .map((slot) => slot.time);
 
           updatedBookedSlots[state.selectedDate] = bookedTimes;
           updatedBlockedSlots[state.selectedDate] = blockedTimes;
@@ -272,7 +278,7 @@ const Appointment = () => {
     };
 
     loadAvailableSlotsForDate();
-  }, [state.selectedDate]);
+  }, [state.selectedDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (state.loading) {
     return (

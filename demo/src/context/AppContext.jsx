@@ -57,7 +57,11 @@ const AppContextProvider = (props) => {
     try {
       const { data } = await api.get("/api/v1/user/profile");
       if (data.success) {
-        setUserData(data.user);
+        // FIX: BaseController wraps response in data envelope
+        // API returns: { success: true, data: { user: {...} } }
+        // axios response.data = { success: true, data: { user: {...} } }
+        // so we need data.data.user, with fallback to data.user for safety
+        setUserData(data.data?.user || data.user);
       }
     } catch (error) {
       console.error("Failed to load user profile:", error);
@@ -67,7 +71,7 @@ const AppContextProvider = (props) => {
     } finally {
       setLoading(false);
     }
-  }, [token, api]);
+  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Update user profile
   const updateUserProfile = async (updateData) => {
@@ -102,7 +106,6 @@ const AppContextProvider = (props) => {
   };
 
   // Auto-load user data when token changes
-  // In AppContext.jsx, update the useEffect:
   useEffect(() => {
     let mounted = true;
 
@@ -113,11 +116,13 @@ const AppContextProvider = (props) => {
       try {
         const { data } = await api.get("/api/v1/user/profile");
         if (data.success && mounted) {
-          setUserData(data.user);
+          // FIX: BaseController wraps response in data envelope
+          // API returns: { success: true, data: { user: {...} } }
+          // so we need data.data.user, with fallback to data.user for safety
+          setUserData(data.data?.user || data.user);
         }
       } catch (error) {
         console.error("Failed to load user profile:", error);
-        // Don't show toast for 401 errors
         if (error.response?.status !== 401 && error.response?.status !== 403) {
           toast.error("فشل تحميل بيانات المستخدم");
         }
@@ -137,7 +142,7 @@ const AppContextProvider = (props) => {
     return () => {
       mounted = false;
     };
-  }, [token]); // Only depend on token, not loadUserProfileData
+  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const value = {
     backendUrl,

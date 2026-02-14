@@ -10,7 +10,6 @@ const TimeSlots = ({
   onTimeSelect,
 }) => {
   // Generate time slots (10 AM to 9 PM, 30-minute intervals)
-  // In TimeSlots.jsx, update the time generation
   const generateTimeSlots = () => {
     const slots = [];
     for (let hour = 10; hour < 21; hour++) {
@@ -28,21 +27,25 @@ const TimeSlots = ({
           .replace("AM", "ص")
           .replace("PM", "م");
 
-        // Also keep the numeric format for API calls
-        const numericTime = `${hour.toString().padStart(2, "0")}:${minute
-          .toString()
-          .padStart(2, "0")}`;
-
         const isBooked =
-          bookedSlots[selectedDate]?.includes(arabicTime) || false;
+          bookedSlots[selectedDate]?.some((slot) =>
+            typeof slot === "object"
+              ? slot.time === arabicTime
+              : slot === arabicTime
+          ) || false;
+
         const isBlocked =
-          blockedSlots[selectedDate]?.includes(arabicTime) || false;
+          blockedSlots[selectedDate]?.some((slot) =>
+            typeof slot === "object"
+              ? slot.time === arabicTime
+              : slot === arabicTime
+          ) || false;
+
         const isUnavailable = isBooked || isBlocked;
 
         slots.push({
-          time: arabicTime, // Store Arabic format
-          numericTime: numericTime, // Store numeric format for API
-          formattedTime: arabicTime, // Display Arabic format
+          time: arabicTime,
+          formattedTime: arabicTime,
           isBooked,
           isBlocked,
           isUnavailable,
@@ -89,37 +92,47 @@ const TimeSlots = ({
               disabled={slot.isUnavailable}
               className={`w-full px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 relative overflow-hidden ${
                 slot.isBlocked
-                  ? "bg-red-50 border border-red-200 text-red-600 cursor-not-allowed"
+                  ? "bg-red-50 border border-red-200 text-red-600 cursor-not-allowed slot-blurred"
                   : slot.isBooked
-                  ? "bg-gray-100 border border-gray-300 text-gray-500 cursor-not-allowed"
+                  ? "bg-gray-100 border border-gray-300 text-gray-500 cursor-not-allowed slot-blurred"
                   : selectedTime === slot.time
                   ? "bg-gradient-to-r from-primary to-secondary text-white shadow-lg"
                   : "bg-lightBg text-textMain hover:bg-accent hover:shadow-md"
               }`}
             >
               {/* Slot content */}
-              <div className="relative z-10">
-                <span className={slot.isUnavailable ? "blur-text" : ""}>
-                  {slot.formattedTime}
-                </span>
+              <div
+                className={`relative z-10 ${
+                  slot.isUnavailable ? "blur-text" : ""
+                }`}
+              >
+                {slot.formattedTime}
               </div>
 
-              {/* Red X mark for booked/blocked slots */}
+              {/* Status indicators for booked/blocked slots */}
               {slot.isUnavailable && (
                 <>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="relative w-6 h-6">
-                      {/* Diagonal red X */}
-                      <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-red-500 transform -rotate-45"></div>
-                      <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-red-500 transform rotate-45"></div>
+                  {/* Diagonal X mark */}
+                  <div className="absolute inset-0 flex items-center justify-center z-20">
+                    <div className="relative w-6 h-6 opacity-70">
+                      <div
+                        className={`absolute top-1/2 left-0 right-0 h-0.5 transform -rotate-45 ${
+                          slot.isBlocked ? "bg-red-500" : "bg-gray-500"
+                        }`}
+                      ></div>
+                      <div
+                        className={`absolute top-1/2 left-0 right-0 h-0.5 transform rotate-45 ${
+                          slot.isBlocked ? "bg-red-500" : "bg-gray-500"
+                        }`}
+                      ></div>
                     </div>
                   </div>
 
                   {/* Status text */}
-                  <div className="absolute top-1 left-1 z-20">
+                  <div className="absolute top-1 left-1 z-30">
                     <span
                       className={`text-[10px] font-bold ${
-                        slot.isBlocked ? "text-red-600" : "text-red-500"
+                        slot.isBlocked ? "text-red-600" : "text-gray-600"
                       }`}
                     >
                       {slot.isBlocked ? "محظور" : "محجوز"}

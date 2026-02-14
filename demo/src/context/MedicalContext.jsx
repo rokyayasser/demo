@@ -25,11 +25,15 @@ const MedicalContextProvider = (props) => {
 
       console.log("Medical services response:", response.data);
 
-      // Check different possible response structures
       if (response.data.success) {
-        // Try multiple possible response structures
+        // FIX: BaseController wraps in data, and paginatedResponse puts array in data.data
+        // API returns: { success: true, data: { data: [...services], pagination: {...} } }
+        // OR for simple success: { success: true, data: [...services] }
         const services =
-          response.data.data || response.data.services || response.data || [];
+          response.data.data?.data || // paginatedResponse structure
+          response.data.data || // simple success structure
+          response.data.services ||
+          [];
         console.log("Extracted services:", services);
         setMedicalservices(Array.isArray(services) ? services : []);
       } else {
@@ -51,8 +55,20 @@ const MedicalContextProvider = (props) => {
         `${backendUrl}/api/v1/appointments/medical-services/${serviceId}`
       );
 
+      console.log("getServiceById raw response:", response.data);
+
       if (response.data.success) {
-        return response.data.service || response.data.data || response.data;
+        // FIX: BaseController.success(res, { service }, ...) produces:
+        // { success: true, data: { service: {...} } }
+        // axios wraps it so response.data = { success: true, data: { service: {...} } }
+        // Therefore we need response.data.data.service
+        const service =
+          response.data.data?.service || // ✅ correct path
+          response.data.service || // fallback
+          response.data.data; // last resort
+
+        console.log("Extracted service:", service);
+        return service;
       } else {
         toast.error(response.data.message || "فشل في تحميل الخدمة");
         return null;
@@ -73,7 +89,10 @@ const MedicalContextProvider = (props) => {
 
       if (response.data.success) {
         return (
-          response.data.data || response.data.services || response.data || []
+          response.data.data?.data ||
+          response.data.data ||
+          response.data.services ||
+          []
         );
       } else {
         toast.error(response.data.message || "فشل في تحميل الخدمات");

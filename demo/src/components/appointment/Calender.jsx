@@ -40,7 +40,11 @@ const Calendar = ({
       // Check if date has booked or blocked slots
       const bookedForDate = bookedSlots[dateKey] || [];
       const blockedForDate = blockedSlots[dateKey] || [];
-      const isFullyBooked = bookedForDate.length + blockedForDate.length >= 24; // Assuming 24 slots per day
+
+      // Count total unavailable slots
+      const totalSlots = 22; // 10 AM to 9 PM, 30 min intervals
+      const unavailableSlots = bookedForDate.length + blockedForDate.length;
+      const isFullyBooked = unavailableSlots >= totalSlots;
 
       days.push({
         date,
@@ -51,6 +55,7 @@ const Calendar = ({
         isFullyBooked,
         bookedCount: bookedForDate.length,
         blockedCount: blockedForDate.length,
+        unavailableSlots,
       });
     }
 
@@ -159,57 +164,35 @@ const Calendar = ({
                   : status === "past"
                   ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
                   : status === "fullyBooked"
-                  ? "bg-gray-200 text-gray-500 border-gray-300 cursor-not-allowed opacity-70"
+                  ? "bg-gray-200 text-gray-500 border-gray-300 cursor-not-allowed slot-blurred"
                   : "bg-white text-textMain border-borderLight hover:border-primary cursor-pointer"
               }`}
             >
-              {/* Blur overlay for fully booked dates */}
-              {status === "fullyBooked" && (
-                <>
-                  <div className="absolute inset-0 bg-gradient-to-br from-gray-300/60 to-gray-400/40 backdrop-blur-[1px]"></div>
-                  <div className="absolute inset-0 flex items-center justify-center opacity-70">
-                    <svg
-                      className="w-10 h-10 text-gray-500"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="1"
-                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                  </div>
-                </>
-              )}
-
               {/* Day number */}
               <p
                 className={`text-xl font-bold relative z-10 ${
-                  status === "fullyBooked"
-                    ? "text-gray-600 filter blur-[0.5px]"
-                    : ""
+                  status === "fullyBooked" ? "blur-text" : ""
                 }`}
               >
                 {day.day}
               </p>
 
               {/* Status indicator */}
-              <span
-                className={`text-[10px] mt-1 relative z-10 font-medium ${
-                  status === "fullyBooked"
-                    ? "text-gray-700 filter blur-[0.5px]"
-                    : ""
-                }`}
-              >
-                {status === "fullyBooked" ? "مكتمل" : "متاح"}
-              </span>
+              {day.unavailableSlots > 0 && !day.isFullyBooked && (
+                <span className="text-[10px] text-orange-600 font-medium mt-1">
+                  {day.unavailableSlots}/22 محجوز
+                </span>
+              )}
+
+              {status === "fullyBooked" && (
+                <span className="text-[10px] text-red-600 font-medium mt-1 blur-text">
+                  مكتمل
+                </span>
+              )}
 
               {/* X icon for fully booked */}
               {status === "fullyBooked" && (
-                <div className="absolute top-1 right-1">
+                <div className="absolute top-1 right-1 z-20">
                   <svg
                     className="w-5 h-5 text-red-500 opacity-80"
                     fill="currentColor"
@@ -240,10 +223,13 @@ const Calendar = ({
             <span className="text-sm text-textMain">متاح</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-gray-200 relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-gray-400/50 to-gray-500/30 blur-[0.5px] rounded"></div>
+            <div className="w-4 h-4 rounded bg-gray-200 relative slot-blurred">
+              <div className="w-4 h-4 rounded bg-gray-300 opacity-50"></div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-3 h-0.5 bg-gray-600 transform rotate-45"></div>
+              </div>
             </div>
-            <span className="text-sm text-textMain">محجوز</span>
+            <span className="text-sm text-textMain">محجوز/محظور</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded bg-gray-100 border border-gray-300"></div>

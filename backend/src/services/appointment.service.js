@@ -3,8 +3,199 @@ const MedicalService = require("../models/MedicalService");
 const User = require("../models/User");
 const cloudinary = require("../config/cloudinary");
 const { APPOINTMENT_STATUS } = require("../utils/constants/appointment.status");
+const mongoose = require("mongoose");
 
 class AppointmentService {
+  constructor() {
+    // Bind methods to ensure correct 'this' context
+    this.normalizeTimeToArabic = this.normalizeTimeToArabic.bind(this);
+    this.checkSlotAvailability = this.checkSlotAvailability.bind(this);
+    this.createAppointment = this.createAppointment.bind(this);
+    this.getAppointmentsByUserId = this.getAppointmentsByUserId.bind(this);
+    this.cancelAppointment = this.cancelAppointment.bind(this);
+    this.getBookedSlots = this.getBookedSlots.bind(this);
+    this.getAvailableSlots = this.getAvailableSlots.bind(this);
+    this.updateAppointmentStatus = this.updateAppointmentStatus.bind(this);
+    this.blockTimeSlot = this.blockTimeSlot.bind(this);
+    this.unblockTimeSlot = this.unblockTimeSlot.bind(this);
+    this.getBlockedSlots = this.getBlockedSlots.bind(this);
+  }
+
+  // Helper methods as class methods
+  convertToArabicNumerals(number) {
+    const arabicNumerals = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"];
+    return number
+      .toString()
+      .replace(/\d/g, (digit) => arabicNumerals[digit] || digit);
+  }
+
+  convertToEnglishNumerals(arabicNumber) {
+    const arabicToEnglish = {
+      "٠": "0",
+      "١": "1",
+      "٢": "2",
+      "٣": "3",
+      "٤": "4",
+      "٥": "5",
+      "٦": "6",
+      "٧": "7",
+      "٨": "8",
+      "٩": "9",
+    };
+
+    return arabicNumber
+      .toString()
+      .split("")
+      .map((char) => arabicToEnglish[char] || char)
+      .join("");
+  }
+
+  normalizeTimeToArabic(time) {
+    try {
+      // If time is already in Arabic format, return as-is
+      if (!time || time.trim() === "") return "";
+
+      // Check if already contains Arabic period indicators
+      if (time.includes("ص") || time.includes("م")) {
+        return time;
+      }
+
+      // If it's a numeric format with English AM/PM
+      const timeStr = time.toString().trim().toUpperCase();
+
+      // Handle 24-hour format (e.g., "14:00", "18:00")
+      if (/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(timeStr)) {
+        const [hours, minutes] = timeStr.split(":");
+        const hour = parseInt(hours, 10);
+        const minute = parseInt(minutes, 10);
+
+        const isPM = hour >= 12;
+        const displayHour = hour % 12 || 12;
+
+        // Convert to Arabic numerals
+        const arabicHour = this.convertToArabicNumerals(displayHour.toString());
+        const arabicMinute = this.convertToArabicNumerals(
+          minute.toString().padStart(2, "0")
+        );
+        const period = isPM ? "م" : "ص";
+
+        return `${arabicHour}:${arabicMinute} ${period}`;
+      }
+
+      // Handle English AM/PM format (e.g., "02:00 PM")
+      if (timeStr.includes("AM") || timeStr.includes("PM")) {
+        const [timePart, period] = timeStr.split(" ");
+        const [hours, minutes] = timePart.split(":");
+        const hour = parseInt(hours, 10);
+        const minute = minutes ? parseInt(minutes, 10) : 0;
+
+        const displayHour = hour % 12 || 12;
+        const arabicHour = this.convertToArabicNumerals(displayHour.toString());
+        const arabicMinute = this.convertToArabicNumerals(
+          minute.toString().padStart(2, "0")
+        );
+        const arabicPeriod = period === "PM" ? "م" : "ص";
+
+        return `${arabicHour}:${arabicMinute} ${arabicPeriod}`;
+      }
+
+      // If we can't parse it, try to convert Arabic numerals to English first
+      const englishTime = this.convertToEnglishNumerals(time);
+      if (englishTime !== time) {
+        return this.normalizeTimeToArabic(englishTime);
+      }
+
+      console.warn("Could not normalize time format:", time);
+      return time;
+    } catch (error) {
+      console.error("Error normalizing time:", error, time);
+      return time;
+    }
+  }
+
+  async debugSlotChecking(date, time) {
+    console.log("=== DEBUG SLOT CHECKING ===");
+    console.log("Checking date:", date);
+    console.log("Checking time:", time);
+
+    const normalizedTime = this.normalizeTimeToArabic(time);
+    console.log("Normalized time:", normalizedTime);
+
+    // Find all appointments on this date
+    const allAppointments = await Appointment.find({
+      date: date,
+      time: { $exists: true, $ne: "" },
+    })
+      .select("time status isBlockedSlot")
+      .lean();
+
+    console.log("All appointments on this date:", allAppointments);
+
+    // Check if our specific time exists
+    const specificAppointment = await Appointment.findOne({
+      date: date,
+      time: normalizedTime,
+    })
+      .select("time status isBlockedSlot")
+      .lean();
+
+    console.log("Specific appointment at this time:", specificAppointment);
+    console.log("=== END DEBUG ===");
+
+    return { allAppointments, specificAppointment };
+  }
+
+  async checkSlotAvailability(date, time) {
+    try {
+      // Add debug logging
+      await this.debugSlotChecking(date, time);
+
+      // Normalize the time format
+      const normalizedTime = this.normalizeTimeToArabic(time);
+      console.log(
+        `Checking slot availability: Date=${date}, Time=${time}, Normalized=${normalizedTime}`
+      );
+
+      // Find any appointment at this date and time
+      const existingAppointment = await Appointment.findOne({
+        date: date,
+        time: normalizedTime,
+        status: { $nin: ["cancelled"] }, // Include all non-cancelled appointments
+      });
+
+      if (existingAppointment) {
+        console.log("Found existing appointment:", {
+          id: existingAppointment._id,
+          date: existingAppointment.date,
+          time: existingAppointment.time,
+          status: existingAppointment.status,
+          isBlockedSlot: existingAppointment.isBlockedSlot,
+        });
+
+        // Check if it's blocked
+        if (
+          existingAppointment.isBlockedSlot ||
+          existingAppointment.status === "blocked"
+        ) {
+          console.log("Slot is blocked by admin");
+          return false;
+        }
+
+        // Check if it's booked (pending, confirmed, completed, no_show)
+        if (existingAppointment.status !== "cancelled") {
+          console.log("Slot is already booked");
+          return false;
+        }
+      }
+
+      console.log("Slot is available");
+      return true;
+    } catch (error) {
+      console.error("Check Slot Availability Error:", error);
+      throw error;
+    }
+  }
+
   async createAppointment(appointmentData, userId) {
     try {
       // Validate service exists and is available
@@ -17,21 +208,18 @@ class AppointmentService {
         throw new Error("Service is not available");
       }
 
-      // Normalize date and time
-      const normalizedDate = await this.normalizeDate(appointmentData.date);
+      // Normalize time
       const normalizedTime = this.normalizeTimeToArabic(
         appointmentData.time || ""
       );
-
       console.log("Creating appointment with:", {
         originalDate: appointmentData.date,
-        normalizedDate,
         originalTime: appointmentData.time,
         normalizedTime,
         userId,
       });
 
-      // Check slot availability using the same method
+      // Check slot availability
       const isAvailable = await this.checkSlotAvailability(
         appointmentData.date,
         appointmentData.time || ""
@@ -40,7 +228,7 @@ class AppointmentService {
       if (!isAvailable) {
         // Check if it's blocked or booked
         const existing = await Appointment.findOne({
-          $or: [{ date: appointmentData.date }, { date: normalizedDate }],
+          date: appointmentData.date,
           time: normalizedTime,
           status: { $nin: ["cancelled"] },
         });
@@ -85,8 +273,8 @@ class AppointmentService {
         name: `${appointmentData.firstName} ${appointmentData.lastName}`,
         email: appointmentData.email || user.email,
         phone: appointmentData.phone || user.phone,
-        date: normalizedDate, // Use normalized date
-        time: normalizedTime, // Use normalized time
+        date: appointmentData.date,
+        time: normalizedTime,
         category: appointmentData.category,
         message: appointmentData.message || "",
         amount: appointmentData.amount || service.fees,
@@ -188,136 +376,6 @@ class AppointmentService {
     }
   }
 
-  // In appointment.service.js - Update the checkSlotAvailability method:
-
-  async checkSlotAvailability(date, time) {
-    try {
-      // Normalize the time format
-      const normalizedTime = this.normalizeTimeToArabic(time);
-
-      // Try to normalize the date format
-      const normalizedDate = await this.normalizeDate(date);
-
-      console.log(
-        `Checking slot availability: Date=${date}, NormalizedDate=${normalizedDate}, Time=${normalizedTime}`
-      );
-
-      // Check in all possible date formats
-      const existingAppointment = await Appointment.findOne({
-        $or: [
-          { date: date }, // Original date
-          { date: normalizedDate }, // Normalized date
-          // Also check for dates that might be stored in different formats
-        ],
-        time: normalizedTime,
-        status: { $nin: ["cancelled"] },
-      });
-
-      if (existingAppointment) {
-        console.log("Found existing appointment:", {
-          id: existingAppointment._id,
-          date: existingAppointment.date,
-          time: existingAppointment.time,
-          status: existingAppointment.status,
-          isBlockedSlot: existingAppointment.isBlockedSlot,
-        });
-
-        if (
-          existingAppointment.isBlockedSlot ||
-          existingAppointment.status === "blocked"
-        ) {
-          console.log("Slot is blocked by admin");
-          return false;
-        }
-
-        if (existingAppointment.status !== "cancelled") {
-          console.log("Slot is already booked");
-          return false;
-        }
-      }
-
-      // Also check specifically for blocked slots
-      const blockedSlot = await Appointment.findOne({
-        $or: [{ date: date }, { date: normalizedDate }],
-        time: normalizedTime,
-        status: "blocked",
-        isBlockedSlot: true,
-      });
-
-      if (blockedSlot) {
-        console.log("Found blocked slot:", blockedSlot._id);
-        return false;
-      }
-
-      console.log("Slot is available");
-      return true;
-    } catch (error) {
-      console.error("Check Slot Availability Error:", error);
-      throw error;
-    }
-  }
-
-  // Add this helper method to normalize dates
-  async normalizeDate(dateString) {
-    try {
-      // If it's already in Arabic format, return as-is
-      if (dateString.includes("،") && dateString.includes("يناير")) {
-        return dateString;
-      }
-
-      // If it's in ISO format (YYYY-MM-DD), convert to Arabic
-      if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-        const date = new Date(dateString);
-        if (isNaN(date.getTime())) {
-          return dateString;
-        }
-
-        // Format to Arabic date
-        const arabicDateHelper = require("./arabic.date");
-        return arabicDateHelper.formatToArabicDate(date);
-      }
-
-      // If it's a Date object, convert to Arabic
-      if (dateString instanceof Date) {
-        const arabicDateHelper = require("./arabic.date");
-        return arabicDateHelper.formatToArabicDate(dateString);
-      }
-
-      return dateString;
-    } catch (error) {
-      console.error("Error normalizing date:", error);
-      return dateString;
-    }
-  }
-
-  // Add these helper methods:
-  convertToArabicNumerals(number) {
-    const arabicNumerals = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"];
-    return number
-      .toString()
-      .replace(/\d/g, (digit) => arabicNumerals[digit] || digit);
-  }
-
-  convertToEnglishNumerals(arabicNumber) {
-    const arabicToEnglish = {
-      "٠": "0",
-      "١": "1",
-      "٢": "2",
-      "٣": "3",
-      "٤": "4",
-      "٥": "5",
-      "٦": "6",
-      "٧": "7",
-      "٨": "8",
-      "٩": "9",
-    };
-
-    return arabicNumber
-      .toString()
-      .split("")
-      .map((char) => arabicToEnglish[char] || char)
-      .join("");
-  }
   async getBookedSlots(date = null) {
     try {
       const query = {
@@ -376,7 +434,6 @@ class AppointmentService {
       };
     } catch (error) {
       console.error("Get Booked Slots Service Error:", error);
-      // IMPORTANT: Throw the error so the controller can catch it
       throw error;
     }
   }
