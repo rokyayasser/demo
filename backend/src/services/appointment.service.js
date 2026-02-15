@@ -52,18 +52,13 @@ class AppointmentService {
 
   normalizeTimeToArabic(time) {
     try {
-      // If time is already in Arabic format, return as-is
       if (!time || time.trim() === "") return "";
-
-      // Check if already contains Arabic period indicators
       if (time.includes("ص") || time.includes("م")) {
         return time;
       }
 
-      // If it's a numeric format with English AM/PM
       const timeStr = time.toString().trim().toUpperCase();
 
-      // Handle 24-hour format (e.g., "14:00", "18:00")
       if (/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(timeStr)) {
         const [hours, minutes] = timeStr.split(":");
         const hour = parseInt(hours, 10);
@@ -72,17 +67,15 @@ class AppointmentService {
         const isPM = hour >= 12;
         const displayHour = hour % 12 || 12;
 
-        // Convert to Arabic numerals
         const arabicHour = this.convertToArabicNumerals(displayHour.toString());
         const arabicMinute = this.convertToArabicNumerals(
-          minute.toString().padStart(2, "0")
+          minute.toString().padStart(2, "0"),
         );
         const period = isPM ? "م" : "ص";
 
         return `${arabicHour}:${arabicMinute} ${period}`;
       }
 
-      // Handle English AM/PM format (e.g., "02:00 PM")
       if (timeStr.includes("AM") || timeStr.includes("PM")) {
         const [timePart, period] = timeStr.split(" ");
         const [hours, minutes] = timePart.split(":");
@@ -92,14 +85,13 @@ class AppointmentService {
         const displayHour = hour % 12 || 12;
         const arabicHour = this.convertToArabicNumerals(displayHour.toString());
         const arabicMinute = this.convertToArabicNumerals(
-          minute.toString().padStart(2, "0")
+          minute.toString().padStart(2, "0"),
         );
         const arabicPeriod = period === "PM" ? "م" : "ص";
 
         return `${arabicHour}:${arabicMinute} ${arabicPeriod}`;
       }
 
-      // If we can't parse it, try to convert Arabic numerals to English first
       const englishTime = this.convertToEnglishNumerals(time);
       if (englishTime !== time) {
         return this.normalizeTimeToArabic(englishTime);
@@ -121,7 +113,6 @@ class AppointmentService {
     const normalizedTime = this.normalizeTimeToArabic(time);
     console.log("Normalized time:", normalizedTime);
 
-    // Find all appointments on this date
     const allAppointments = await Appointment.find({
       date: date,
       time: { $exists: true, $ne: "" },
@@ -131,7 +122,6 @@ class AppointmentService {
 
     console.log("All appointments on this date:", allAppointments);
 
-    // Check if our specific time exists
     const specificAppointment = await Appointment.findOne({
       date: date,
       time: normalizedTime,
@@ -147,20 +137,17 @@ class AppointmentService {
 
   async checkSlotAvailability(date, time) {
     try {
-      // Add debug logging
       await this.debugSlotChecking(date, time);
 
-      // Normalize the time format
       const normalizedTime = this.normalizeTimeToArabic(time);
       console.log(
-        `Checking slot availability: Date=${date}, Time=${time}, Normalized=${normalizedTime}`
+        `Checking slot availability: Date=${date}, Time=${time}, Normalized=${normalizedTime}`,
       );
 
-      // Find any appointment at this date and time
       const existingAppointment = await Appointment.findOne({
         date: date,
         time: normalizedTime,
-        status: { $nin: ["cancelled"] }, // Include all non-cancelled appointments
+        status: { $nin: ["cancelled"] },
       });
 
       if (existingAppointment) {
@@ -172,7 +159,6 @@ class AppointmentService {
           isBlockedSlot: existingAppointment.isBlockedSlot,
         });
 
-        // Check if it's blocked
         if (
           existingAppointment.isBlockedSlot ||
           existingAppointment.status === "blocked"
@@ -181,7 +167,6 @@ class AppointmentService {
           return false;
         }
 
-        // Check if it's booked (pending, confirmed, completed, no_show)
         if (existingAppointment.status !== "cancelled") {
           console.log("Slot is already booked");
           return false;
@@ -210,7 +195,7 @@ class AppointmentService {
 
       // Normalize time
       const normalizedTime = this.normalizeTimeToArabic(
-        appointmentData.time || ""
+        appointmentData.time || "",
       );
       console.log("Creating appointment with:", {
         originalDate: appointmentData.date,
@@ -222,11 +207,10 @@ class AppointmentService {
       // Check slot availability
       const isAvailable = await this.checkSlotAvailability(
         appointmentData.date,
-        appointmentData.time || ""
+        appointmentData.time || "",
       );
 
       if (!isAvailable) {
-        // Check if it's blocked or booked
         const existing = await Appointment.findOne({
           date: appointmentData.date,
           time: normalizedTime,
@@ -246,24 +230,48 @@ class AppointmentService {
         throw new Error("User not found");
       }
 
-      // Handle file uploads
+      // ✅ FIX: Handle file uploads with graceful fallback
       let medicationsFileUrl = null;
       let testsFileUrl = null;
 
+      // Upload medications file if provided
       if (appointmentData.medicationsFile) {
-        medicationsFileUrl = await cloudinary.uploadFile(
-          appointmentData.medicationsFile.buffer,
-          "appointments/medications",
-          appointmentData.medicationsFile.originalname
-        );
+        try {
+          console.log("📤 Uploading medications file...");
+          medicationsFileUrl = await cloudinary.uploadFile(
+            appointmentData.medicationsFile.buffer,
+            "appointments/medications",
+            appointmentData.medicationsFile.originalname,
+          );
+          console.log("✅ Medications file uploaded:", medicationsFileUrl);
+        } catch (uploadError) {
+          console.error(
+            "⚠️  Failed to upload medications file:",
+            uploadError.message,
+          );
+          // Continue without file - appointment can still be created
+          medicationsFileUrl = null;
+        }
       }
 
+      // Upload tests file if provided
       if (appointmentData.testsFile) {
-        testsFileUrl = await cloudinary.uploadFile(
-          appointmentData.testsFile.buffer,
-          "appointments/tests",
-          appointmentData.testsFile.originalname
-        );
+        try {
+          console.log("📤 Uploading tests file...");
+          testsFileUrl = await cloudinary.uploadFile(
+            appointmentData.testsFile.buffer,
+            "appointments/tests",
+            appointmentData.testsFile.originalname,
+          );
+          console.log("✅ Tests file uploaded:", testsFileUrl);
+        } catch (uploadError) {
+          console.error(
+            "⚠️  Failed to upload tests file:",
+            uploadError.message,
+          );
+          // Continue without file - appointment can still be created
+          testsFileUrl = null;
+        }
       }
 
       // Create appointment
@@ -311,7 +319,7 @@ class AppointmentService {
         $inc: { "meta.bookings": 1 },
       });
 
-      console.log("Appointment created successfully:", appointment._id);
+      console.log("✅ Appointment created successfully:", appointment._id);
       return appointment;
     } catch (error) {
       console.error("Appointment Service Error:", error);
@@ -424,7 +432,7 @@ class AppointmentService {
       });
 
       console.log(
-        `Processed ${Object.keys(bookedSlots).length} dates with booked slots`
+        `Processed ${Object.keys(bookedSlots).length} dates with booked slots`,
       );
 
       return {
@@ -458,7 +466,7 @@ class AppointmentService {
             .replace("PM", "م");
 
           const existingSlot = bookedTimes.find(
-            (slot) => slot.time === formattedTime
+            (slot) => slot.time === formattedTime,
           );
           const isBooked = existingSlot ? existingSlot.isBooked : false;
           const isBlocked = existingSlot ? existingSlot.isBlocked : false;
@@ -491,7 +499,7 @@ class AppointmentService {
     appointmentId,
     status,
     adminEmail = null,
-    notes = ""
+    notes = "",
   ) {
     try {
       const validStatuses = [
@@ -534,7 +542,6 @@ class AppointmentService {
 
   async blockTimeSlot(date, time, reason, adminEmail) {
     try {
-      // Check if slot is already booked
       const existingAppointment = await Appointment.findOne({
         date,
         time,
@@ -545,7 +552,6 @@ class AppointmentService {
         throw new Error("Cannot block an already booked slot");
       }
 
-      // Check if already blocked
       const alreadyBlocked = await Appointment.findOne({
         date,
         time,
@@ -557,7 +563,6 @@ class AppointmentService {
         throw new Error("This slot is already blocked");
       }
 
-      // Create a blocked appointment record
       const blockedAppointment = new Appointment({
         userId: new mongoose.Types.ObjectId(),
         serviceId: new mongoose.Types.ObjectId(),
@@ -623,7 +628,6 @@ class AppointmentService {
         .sort({ date: 1, time: 1 })
         .lean();
 
-      // Group by date
       const blockedByDate = {};
       blockedSlots.forEach((slot) => {
         if (!blockedByDate[slot.date]) {

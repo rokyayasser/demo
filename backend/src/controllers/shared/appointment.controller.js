@@ -19,25 +19,40 @@ class SharedAppointmentController extends BaseController {
     try {
       const userId = req.userId;
 
+      console.log("📥 Booking request received:");
+      console.log("Body:", req.body);
+      console.log("Files:", req.files);
+
       // Validate input
       const { error, value } = appointmentValidation.create.validate(req.body);
-      if (error) return this.validationError(res, error.details);
+      if (error) {
+        console.log("❌ Validation error:", error.details);
+        return this.validationError(res, error.details);
+      }
 
-      // Add files from request if available
+      // FIX: Multer stores files in req.files, not req.body
+      // Access files from req.files after multer processes them
       if (req.files) {
-        if (req.files.medicationsFile) {
-          value.medicationsFile =
-            req.files.medicationsFile[0] || req.files.medicationsFile;
+        // Multer with .fields() returns an object with field names as keys
+        // Each key contains an array of files
+        if (req.files.medicationsFile && req.files.medicationsFile[0]) {
+          value.medicationsFile = req.files.medicationsFile[0];
         }
-        if (req.files.testsFile) {
-          value.testsFile = req.files.testsFile[0] || req.files.testsFile;
+        if (req.files.testsFile && req.files.testsFile[0]) {
+          value.testsFile = req.files.testsFile[0];
         }
       }
+
+      console.log("✅ Validated data:", {
+        ...value,
+        medicationsFile: value.medicationsFile?.originalname,
+        testsFile: value.testsFile?.originalname,
+      });
 
       // Create appointment
       const appointment = await appointmentService.createAppointment(
         value,
-        userId
+        userId,
       );
 
       return this.success(
@@ -50,10 +65,10 @@ class SharedAppointmentController extends BaseController {
             status: appointment.status,
           },
         },
-        "Appointment booked successfully"
+        "Appointment booked successfully",
       );
     } catch (error) {
-      console.error("Book Appointment Error:", error);
+      console.error("❌ Book Appointment Error:", error);
 
       if (error.message.includes("already booked")) {
         return this.conflict(res, "Time slot already booked");
@@ -75,7 +90,7 @@ class SharedAppointmentController extends BaseController {
   async checkSlotAvailability(req, res) {
     try {
       const { error, value } = appointmentValidation.checkSlot.validate(
-        req.query
+        req.query,
       );
       if (error) return this.validationError(res, error.details);
 
@@ -83,7 +98,7 @@ class SharedAppointmentController extends BaseController {
 
       const isAvailable = await appointmentService.checkSlotAvailability(
         date,
-        time
+        time,
       );
 
       return this.success(res, {
@@ -142,7 +157,7 @@ class SharedAppointmentController extends BaseController {
         res,
         services,
         pagination,
-        "Services retrieved successfully"
+        "Services retrieved successfully",
       );
     } catch (error) {
       return this.error(res, error.message);
@@ -163,17 +178,15 @@ class SharedAppointmentController extends BaseController {
       return this.error(res, error.message);
     }
   }
-  // In shared/appointment.controller.js
+
   async getBookedSlots(req, res) {
     try {
       const { date } = req.query;
 
       console.log("🔄 Getting booked slots for:", date || "all dates");
 
-      // Call the service
       const slotsData = await appointmentService.getBookedSlots(date || null);
 
-      // Return the response
       return res.status(200).json({
         success: true,
         message: "Booked slots retrieved successfully",
@@ -185,7 +198,6 @@ class SharedAppointmentController extends BaseController {
     } catch (error) {
       console.error("❌ Error in getBookedSlots:", error);
 
-      // FIX: Use error.message directly, not error.error.message
       return res.status(500).json({
         success: false,
         message: error.message || "Failed to get booked slots",

@@ -10,7 +10,7 @@ import { AppContext } from "../../context/AppContext";
 const MyAppointments = () => {
   const { token } = useContext(AppContext);
   const [state, setState] = useState({
-    appointments: [],
+    appointments: [], // ✅ Initialize as empty array
     loading: false,
     paymentLoading: null,
     showCancelModal: false,
@@ -25,14 +25,30 @@ const MyAppointments = () => {
     setState((prev) => ({ ...prev, loading: true }));
     try {
       const response = await appointmentApi.getUserAppointments();
+      console.log("Get appointments response:", response);
+
       if (response.success) {
-        setState((prev) => ({ ...prev, appointments: response.appointments }));
+        // ✅ FIX: BaseController wraps in data, handle both structures
+        const appointments =
+          response.data?.data || // paginatedResponse: { data: { data: [...], pagination } }
+          response.data?.appointments || // simple: { data: { appointments: [...] } }
+          response.appointments || // fallback
+          response.data || // direct data
+          [];
+
+        console.log("Extracted appointments:", appointments);
+        setState((prev) => ({
+          ...prev,
+          appointments: Array.isArray(appointments) ? appointments : [],
+        }));
       } else {
-        toast.error(response.message);
+        toast.error(response.message || "فشل تحميل المواعيد");
+        setState((prev) => ({ ...prev, appointments: [] }));
       }
     } catch (error) {
       console.error("Error loading appointments:", error);
       toast.error("حدث خطأ في تحميل المواعيد");
+      setState((prev) => ({ ...prev, appointments: [] }));
     } finally {
       setState((prev) => ({ ...prev, loading: false }));
     }
@@ -54,7 +70,7 @@ const MyAppointments = () => {
       const newWindow = window.open(
         response.paymentUrl,
         "PaymobPayment",
-        "width=600,height=700,scrollbars=yes"
+        "width=600,height=700,scrollbars=yes",
       );
 
       if (!newWindow) {
@@ -102,7 +118,7 @@ const MyAppointments = () => {
   const handleCancelAppointment = async () => {
     try {
       const response = await appointmentApi.cancelAppointment(
-        state.selectedAppointmentId
+        state.selectedAppointmentId,
       );
 
       if (response.success) {
@@ -120,7 +136,7 @@ const MyAppointments = () => {
 
   useEffect(() => {
     loadAppointments();
-  }, [token]);
+  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Clean up payment window on unmount
   useEffect(() => {
@@ -227,7 +243,12 @@ const MyAppointments = () => {
     );
   }
 
-  if (state.appointments.length === 0) {
+  // ✅ FIX: Safe check - always ensure appointments is an array
+  const appointments = Array.isArray(state.appointments)
+    ? state.appointments
+    : [];
+
+  if (appointments.length === 0) {
     return (
       <motion.div
         initial={{ opacity: 0 }}
@@ -288,7 +309,7 @@ const MyAppointments = () => {
 
       {/* Appointments grid */}
       <div className="grid gap-6 md:grid-cols-2">
-        {state.appointments.map((appt) => {
+        {appointments.map((appt) => {
           const statusConfig = getStatusConfig(appt.status);
 
           return (

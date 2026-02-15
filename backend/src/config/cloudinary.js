@@ -3,10 +3,28 @@ const cloudinary = require("cloudinary").v2;
 class CloudinaryService {
   constructor() {
     this.isConfigured = false;
+    // ✅ FIX: Auto-configure when the module loads
+    this.configure();
   }
 
   configure() {
     try {
+      // Check if environment variables exist
+      if (
+        !process.env.CLOUDINARY_NAME ||
+        !process.env.CLOUDINARY_API_KEY ||
+        !process.env.CLOUDINARY_SECRET_KEY
+      ) {
+        console.warn(
+          "⚠️  Cloudinary environment variables not set. File uploads will be disabled.",
+        );
+        console.warn(
+          "Required: CLOUDINARY_NAME, CLOUDINARY_API_KEY, CLOUDINARY_SECRET_KEY",
+        );
+        this.isConfigured = false;
+        return this;
+      }
+
       cloudinary.config({
         cloud_name: process.env.CLOUDINARY_NAME,
         api_key: process.env.CLOUDINARY_API_KEY,
@@ -16,16 +34,20 @@ class CloudinaryService {
 
       this.isConfigured = true;
       console.log("✅ Cloudinary configured successfully");
+      console.log("   Cloud Name:", process.env.CLOUDINARY_NAME);
       return this;
     } catch (error) {
       console.error("❌ Failed to configure Cloudinary:", error);
-      throw error;
+      this.isConfigured = false;
+      return this;
     }
   }
 
   async uploadImage(buffer, folder = "medical-services", options = {}) {
     if (!this.isConfigured) {
-      throw new Error("Cloudinary not configured");
+      throw new Error(
+        "Cloudinary not configured. Please set CLOUDINARY_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_SECRET_KEY in your .env file",
+      );
     }
 
     return new Promise((resolve, reject) => {
@@ -48,7 +70,7 @@ class CloudinaryService {
             console.log(`✅ Image uploaded: ${result.secure_url}`);
             resolve(result);
           }
-        }
+        },
       );
 
       const { Readable } = require("stream");
@@ -63,10 +85,12 @@ class CloudinaryService {
     buffer,
     folder = "appointments",
     originalFilename,
-    options = {}
+    options = {},
   ) {
     if (!this.isConfigured) {
-      throw new Error("Cloudinary not configured");
+      throw new Error(
+        "Cloudinary not configured. Please set CLOUDINARY_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_SECRET_KEY in your .env file",
+      );
     }
 
     return new Promise((resolve, reject) => {
@@ -94,9 +118,9 @@ class CloudinaryService {
             reject(error);
           } else {
             console.log(`✅ File uploaded: ${result.secure_url}`);
-            resolve(result);
+            resolve(result.secure_url); // ✅ FIX: Return URL directly (not full result object)
           }
-        }
+        },
       );
 
       const { Readable } = require("stream");
@@ -108,6 +132,11 @@ class CloudinaryService {
   }
 
   async deleteImage(publicId) {
+    if (!this.isConfigured) {
+      console.warn("⚠️  Cloudinary not configured, skipping image deletion");
+      return null;
+    }
+
     try {
       console.log(`🗑️  Deleting image: ${publicId}`);
       const result = await cloudinary.uploader.destroy(publicId);
@@ -120,6 +149,11 @@ class CloudinaryService {
   }
 
   async deleteResource(publicId, resourceType = "image") {
+    if (!this.isConfigured) {
+      console.warn("⚠️  Cloudinary not configured, skipping resource deletion");
+      return null;
+    }
+
     try {
       console.log(`🗑️  Deleting resource: ${publicId} (${resourceType})`);
       const result = await cloudinary.uploader.destroy(publicId, {
@@ -134,6 +168,11 @@ class CloudinaryService {
   }
 
   generateImageUrl(publicId, options = {}) {
+    if (!this.isConfigured) {
+      console.warn("⚠️  Cloudinary not configured");
+      return null;
+    }
+
     return cloudinary.url(publicId, {
       secure: true,
       ...options,
@@ -141,4 +180,7 @@ class CloudinaryService {
   }
 }
 
-module.exports = new CloudinaryService();
+// ✅ FIX: Create and configure the singleton instance
+const cloudinaryService = new CloudinaryService();
+
+module.exports = cloudinaryService;
