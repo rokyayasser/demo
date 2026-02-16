@@ -10,7 +10,7 @@ import { AppContext } from "../../context/AppContext";
 const MyAppointments = () => {
   const { token } = useContext(AppContext);
   const [state, setState] = useState({
-    appointments: [], // ✅ Initialize as empty array
+    appointments: [],
     loading: false,
     paymentLoading: null,
     showCancelModal: false,
@@ -19,7 +19,7 @@ const MyAppointments = () => {
   });
 
   // Load appointments
-  const loadAppointments = async () => {
+  const loadAppointments = async (showToast = false) => {
     if (!token) return;
 
     setState((prev) => ({ ...prev, loading: true }));
@@ -28,12 +28,11 @@ const MyAppointments = () => {
       console.log("Get appointments response:", response);
 
       if (response.success) {
-        // ✅ FIX: BaseController wraps in data, handle both structures
         const appointments =
-          response.data?.data || // paginatedResponse: { data: { data: [...], pagination } }
-          response.data?.appointments || // simple: { data: { appointments: [...] } }
-          response.appointments || // fallback
-          response.data || // direct data
+          response.data?.data ||
+          response.data?.appointments ||
+          response.appointments ||
+          response.data ||
           [];
 
         console.log("Extracted appointments:", appointments);
@@ -41,6 +40,10 @@ const MyAppointments = () => {
           ...prev,
           appointments: Array.isArray(appointments) ? appointments : [],
         }));
+
+        if (showToast) {
+          toast.success("تم تحديث حالة المواعيد");
+        }
       } else {
         toast.error(response.message || "فشل تحميل المواعيد");
         setState((prev) => ({ ...prev, appointments: [] }));
@@ -59,34 +62,88 @@ const MyAppointments = () => {
     setState((prev) => ({ ...prev, paymentLoading: appointmentId }));
 
     try {
+      console.log("💳 Initiating payment for:", appointmentId);
+
       const response = await paymentApi.initiatePayment(appointmentId);
+      console.log("📥 Payment response:", response);
 
       if (!response.success) {
-        toast.error(response.message);
+        toast.error(response.message || "فشل بدء عملية الدفع");
         setState((prev) => ({ ...prev, paymentLoading: null }));
         return;
       }
 
+      const paymentUrl =
+        response.data?.data?.paymentUrl ||
+        response.data?.paymentUrl ||
+        response.paymentUrl;
+
+      console.log("🔗 Payment URL extracted:", paymentUrl);
+
+      if (!paymentUrl) {
+        console.error("❌ No payment URL found in response:", response);
+        toast.error("فشل الحصول على رابط الدفع");
+        setState((prev) => ({ ...prev, paymentLoading: null }));
+        return;
+      }
+
+      const windowFeatures = [
+        "width=900",
+        "height=800",
+        "left=100",
+        "top=50",
+        "scrollbars=yes",
+        "resizable=yes",
+        "status=yes",
+        "toolbar=no",
+        "menubar=no",
+      ].join(",");
+
       const newWindow = window.open(
-        response.paymentUrl,
+        paymentUrl,
         "PaymobPayment",
-        "width=600,height=700,scrollbars=yes",
+        windowFeatures,
       );
 
-      if (!newWindow) {
+      if (!newWindow || newWindow.closed) {
         toast.error("يرجى السماح بالنوافذ المنبثقة للمتابعة");
+        console.error("❌ Window blocked or failed to open");
         setState((prev) => ({ ...prev, paymentLoading: null }));
         return;
       }
 
       setState((prev) => ({ ...prev, paymentWindow: newWindow }));
       toast.info("جاري فتح نافذة الدفع...");
+      console.log("✅ Payment window opened successfully");
 
-      // Poll for window closure
+      // Poll for window closure with better error handling
+      let verificationDone = false;
+
       const checkInterval = setInterval(async () => {
-        if (newWindow.closed) {
+        try {
+          if (newWindow.closed) {
+            clearInterval(checkInterval);
+
+            if (!verificationDone) {
+              verificationDone = true;
+              console.log("🔄 Payment window closed, verifying payment...");
+
+              // Wait a moment for Paymob callback to process
+              await new Promise((resolve) => setTimeout(resolve, 3000));
+
+              // Verify payment and update UI immediately
+              await verifyPayment(appointmentId, true);
+
+              setState((prev) => ({
+                ...prev,
+                paymentLoading: null,
+                paymentWindow: null,
+              }));
+            }
+          }
+        } catch (error) {
+          console.error("❌ Error in window check:", error);
           clearInterval(checkInterval);
-          await verifyPayment(appointmentId);
           setState((prev) => ({
             ...prev,
             paymentLoading: null,
@@ -94,23 +151,67 @@ const MyAppointments = () => {
           }));
         }
       }, 1000);
+
+      // Cleanup timeout after 5 minutes
+      setTimeout(() => {
+        clearInterval(checkInterval);
+        if (!verificationDone) {
+          verificationDone = true;
+          if (newWindow && !newWindow.closed) {
+            console.log("⏱️ Payment timeout reached");
+            toast.info("انتهت مهلة الدفع");
+            newWindow.close();
+          }
+          setState((prev) => ({
+            ...prev,
+            paymentLoading: null,
+            paymentWindow: null,
+          }));
+        }
+      }, 300000); // 5 minutes
     } catch (error) {
-      console.error("Payment error:", error);
-      toast.error("حدث خطأ أثناء الدفع");
+      console.error("❌ Payment error:", error);
+      toast.error(
+        error.response?.data?.message || error.message || "حدث خطأ أثناء الدفع",
+      );
       setState((prev) => ({ ...prev, paymentLoading: null }));
     }
   };
 
-  // Verify payment
-  const verifyPayment = async (appointmentId) => {
+  // Verify payment and update UI immediately
+  const verifyPayment = async (appointmentId, shouldReload = true) => {
     try {
       const response = await paymentApi.verifyPayment(appointmentId);
+      console.log("Payment verification response:", response);
+
       if (response.paid) {
         toast.success("تم الدفع بنجاح! ✅");
-        await loadAppointments();
+
+        // Update the local state immediately without waiting for the API
+        setState((prev) => ({
+          ...prev,
+          appointments: prev.appointments.map((appt) =>
+            appt._id === appointmentId ? { ...appt, paid: true } : appt,
+          ),
+        }));
+
+        // Still reload from server to ensure consistency
+        if (shouldReload) {
+          setTimeout(() => {
+            loadAppointments();
+          }, 1000);
+        }
+      } else {
+        // If payment failed or is pending, still reload to get latest status
+        if (shouldReload) {
+          setTimeout(() => {
+            loadAppointments();
+          }, 1000);
+        }
       }
     } catch (error) {
       console.error("Verification error:", error);
+      toast.error("حدث خطأ في التحقق من الدفع");
     }
   };
 
@@ -123,8 +224,22 @@ const MyAppointments = () => {
 
       if (response.success) {
         toast.success("تم إلغاء الموعد بنجاح");
-        setState((prev) => ({ ...prev, showCancelModal: false }));
-        await loadAppointments();
+
+        // Update local state immediately
+        setState((prev) => ({
+          ...prev,
+          appointments: prev.appointments.map((appt) =>
+            appt._id === state.selectedAppointmentId
+              ? { ...appt, status: "cancelled" }
+              : appt,
+          ),
+          showCancelModal: false,
+        }));
+
+        // Still reload from server to ensure consistency
+        setTimeout(() => {
+          loadAppointments();
+        }, 1000);
       } else {
         toast.error(response.message);
       }
@@ -224,7 +339,7 @@ const MyAppointments = () => {
     );
   }
 
-  if (state.loading) {
+  if (state.loading && state.appointments.length === 0) {
     return (
       <motion.div
         initial={{ opacity: 0 }}
@@ -243,7 +358,6 @@ const MyAppointments = () => {
     );
   }
 
-  // ✅ FIX: Safe check - always ensure appointments is an array
   const appointments = Array.isArray(state.appointments)
     ? state.appointments
     : [];

@@ -119,7 +119,7 @@ class PaymobService {
           currency: "EGP",
           integration_id: this.config.integrationId,
           lock_order_when_paid: true,
-        }
+        },
       );
 
       console.log("✅ Payment key created successfully");
@@ -133,7 +133,6 @@ class PaymobService {
       throw new Error("فشل في إنشاء مفتاح الدفع");
     }
   }
-
   async initiatePayment(paymentId, amount, userInfo, items = []) {
     try {
       console.log("💰 Initiating payment...", {
@@ -148,15 +147,27 @@ class PaymobService {
         authToken,
         order,
         userInfo,
-        amount
+        amount,
       );
+
+      // ✅ Generate payment URLs
+      const iframeUrl = `https://accept.paymob.com/api/acceptance/iframes/${this.config.iframeId}?payment_token=${paymentKey}`;
+
+      // ✅ CHANGE THIS: Use your own hosted page instead of Paymob's standalone URL
+      const hostedPageUrl = `${process.env.BACKEND_URL || "http://localhost:4000"}/api/v1/payment/page/${paymentKey}`;
+
+      console.log("✅ Payment URLs generated:", {
+        hostedPage: hostedPageUrl,
+        iframe: iframeUrl.substring(0, 80) + "...",
+      });
 
       return {
         success: true,
         paymentKey,
         orderId: order.id,
         merchantOrderId: order.merchant_order_id,
-        iframeUrl: `https://accept.paymob.com/api/acceptance/iframes/${this.config.iframeId}?payment_token=${paymentKey}`,
+        paymentUrl: hostedPageUrl, // ✅ Changed to hosted page
+        iframeUrl: iframeUrl,
         details: {
           amount,
           currency: "EGP",
@@ -230,7 +241,7 @@ class PaymobService {
           headers: {
             Authorization: `Bearer ${authToken}`,
           },
-        }
+        },
       );
 
       return response.data;

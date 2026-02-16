@@ -9,11 +9,22 @@ class PaymentService {
 
   async initiatePayment(appointmentId, userId) {
     try {
+      console.log("💰 Payment Service - Initiating payment:", {
+        appointmentId,
+        userId,
+      });
+
       // Get appointment
       const appointment = await Appointment.findById(appointmentId);
       if (!appointment) {
         throw new Error("Appointment not found");
       }
+
+      console.log("✅ Appointment found:", {
+        id: appointment._id,
+        amount: appointment.amount,
+        paid: appointment.paid,
+      });
 
       // Check if already paid
       if (appointment.paid) {
@@ -31,18 +42,41 @@ class PaymentService {
         throw new Error("User not found");
       }
 
-      const userInfo = {
-        name: user.name,
+      console.log("✅ User found:", {
+        id: user._id,
         email: user.email,
-        phone: user.phone || "01000000000",
+        name: user.name,
+      });
+
+      // ✅ FIX: Prepare userInfo object with all required fields
+      const userInfo = {
+        name:
+          user.name ||
+          `${appointment.userInfo?.firstName || "Customer"} ${appointment.userInfo?.lastName || ""}`.trim(),
+        email: user.email || appointment.email || "customer@example.com",
+        phone: user.phone || appointment.phone || "01000000000",
       };
 
-      // Initiate payment with Paymob
+      console.log("📋 User info prepared:", userInfo);
+
+      // Validate userInfo has required fields
+      if (!userInfo.email || !userInfo.name) {
+        throw new Error("Missing required user information (email or name)");
+      }
+
+      // ✅ FIX: Call paymob.initiatePayment with correct parameter order
+      // The PaymobService expects: (paymentId, amount, userInfo, items)
       const paymentData = await this.paymob.initiatePayment(
-        appointmentId,
-        appointment.amount,
-        userInfo
+        appointmentId, // paymentId
+        appointment.amount, // amount
+        userInfo, // userInfo object with name, email, phone
+        [], // items (optional)
       );
+
+      console.log("✅ Paymob payment initiated:", {
+        orderId: paymentData.orderId,
+        hasPaymentUrl: !!paymentData.paymentUrl,
+      });
 
       // Store payment info in appointment
       appointment.paymobOrderId = paymentData.orderId;
@@ -50,26 +84,41 @@ class PaymentService {
       appointment.paymentInitiatedAt = new Date();
       await appointment.save();
 
+      console.log("✅ Appointment updated with payment info");
+
       return {
         success: true,
         message: "Payment initiated successfully",
-        paymentUrl: paymentData.iframeUrl,
+        paymentUrl: paymentData.paymentUrl,
         paymentKey: paymentData.paymentKey,
         orderId: paymentData.orderId,
+        iframeUrl: paymentData.iframeUrl, // Also include for backwards compatibility
       };
     } catch (error) {
-      console.error("Payment Service - Initiate Error:", error);
+      console.error("❌ Payment Service - Initiate Error:", {
+        message: error.message,
+        stack: error.stack,
+      });
       throw error;
     }
   }
 
   async handleCallback(callbackData, receivedHmac) {
     try {
+      console.log("📥 Payment callback received:", {
+        transactionId: callbackData.id,
+        success: callbackData.success,
+        orderId: callbackData.order?.id,
+      });
+
       // Verify HMAC
       const hmacValid = this.paymob.verifyCallback(callbackData, receivedHmac);
       if (!hmacValid) {
+        console.error("❌ Invalid HMAC signature");
         throw new Error("Invalid callback signature");
       }
+
+      console.log("✅ HMAC verified");
 
       // Extract appointment ID from merchant_order_id
       const merchantOrderId = callbackData.order?.merchant_order_id;
@@ -81,6 +130,8 @@ class PaymentService {
       const success =
         callbackData.success === true || callbackData.success === "true";
 
+      console.log("🔍 Processing payment for appointment:", appointmentId);
+
       // Find appointment
       const appointment = await Appointment.findById(appointmentId);
       if (!appointment) {
@@ -89,6 +140,8 @@ class PaymentService {
 
       if (success) {
         // Payment successful
+        console.log("✅ Payment successful, updating appointment");
+
         appointment.paid = true;
         appointment.status = "confirmed";
         appointment.paymobTransactionId = callbackData.id;
@@ -101,9 +154,7 @@ class PaymentService {
 
         await appointment.save();
 
-        // Send confirmation email
-        // Note: You would need to implement this
-        // await emailService.sendPaymentConfirmation(appointment);
+        console.log("✅ Appointment updated - paid: true");
 
         return {
           success: true,
@@ -112,6 +163,8 @@ class PaymentService {
         };
       } else {
         // Payment failed
+        console.log("❌ Payment failed");
+
         appointment.paymentAttempts = (appointment.paymentAttempts || 0) + 1;
         appointment.lastPaymentError = "Payment failed in Paymob callback";
         await appointment.save();
@@ -123,7 +176,7 @@ class PaymentService {
         };
       }
     } catch (error) {
-      console.error("Payment Service - Callback Error:", error);
+      console.error("❌ Payment Service - Callback Error:", error);
       throw error;
     }
   }
@@ -155,6 +208,8 @@ class PaymentService {
 
   async verifyPaymentWithPaymob(appointmentId, userId) {
     try {
+      console.log("🔍 Verifying payment with Paymob:", appointmentId);
+
       const appointment = await Appointment.findById(appointmentId);
       if (!appointment) {
         throw new Error("Appointment not found");
@@ -167,6 +222,7 @@ class PaymentService {
 
       // If already paid in our database, return success
       if (appointment.paid) {
+        console.log("✅ Already marked as paid in database");
         return {
           paid: true,
           status: appointment.status,
@@ -177,9 +233,20 @@ class PaymentService {
       // Check with Paymob if we have an order ID
       if (appointment.paymobOrderId) {
         try {
-          const order = await this.paymob.getOrderStatus(
-            appointment.paymobOrderId
+          console.log(
+            "🔍 Checking order status with Paymob:",
+            appointment.paymobOrderId,
           );
+
+          const order = await this.paymob.getOrderStatus(
+            appointment.paymobOrderId,
+          );
+
+          console.log("📊 Paymob order status:", {
+            id: order.id,
+            paid_amount: order.paid_amount_cents,
+            expected_amount: appointment.amount * 100,
+          });
 
           // Check if order is paid
           if (order.paid_amount_cents >= appointment.amount * 100) {
@@ -191,7 +258,7 @@ class PaymentService {
             // Try to get transaction ID from order
             if (order.transactions && order.transactions.length > 0) {
               const successfulTxn = order.transactions.find(
-                (t) => t.success === true
+                (t) => t.success === true,
               );
               if (successfulTxn) {
                 appointment.paymobTransactionId = successfulTxn.id;
@@ -200,6 +267,8 @@ class PaymentService {
 
             await appointment.save();
 
+            console.log("✅ Payment confirmed via Paymob verification");
+
             return {
               paid: true,
               status: "confirmed",
@@ -207,11 +276,12 @@ class PaymentService {
             };
           }
         } catch (paymobError) {
-          console.error("Paymob verification error:", paymobError);
+          console.error("⚠️ Paymob verification error:", paymobError.message);
         }
       }
 
       // Return current status from database
+      console.log("ℹ️ Payment not confirmed yet");
       return {
         paid: appointment.paid,
         status: appointment.status,

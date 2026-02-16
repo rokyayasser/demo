@@ -14,7 +14,12 @@ const MyProfile = () => {
     formData: {
       name: "",
       phone: "",
-      address: { line1: "", line2: "" },
+      address: {
+        line1: "",
+        line2: "",
+        city: "", // ✅ Added
+        country: "", // ✅ Added
+      },
       gender: "Male",
       dob: "",
       image: null,
@@ -46,7 +51,12 @@ const MyProfile = () => {
         formData: {
           name: userData.name || "",
           phone: userData.phone || "",
-          address: userData.address || { line1: "", line2: "" },
+          address: {
+            line1: userData.address?.line1 || "",
+            line2: userData.address?.line2 || "",
+            city: userData.address?.city || "", // ✅ Added
+            country: userData.address?.country || "", // ✅ Added
+          },
           gender: userData.gender || "Male",
           dob: userData.dob || "",
           image: null,
@@ -61,7 +71,13 @@ const MyProfile = () => {
     const data = new FormData();
     data.append("name", state.formData.name);
     data.append("phone", state.formData.phone);
-    data.append("address", JSON.stringify(state.formData.address));
+
+    // ✅ Send all address fields
+    data.append("address[line1]", state.formData.address.line1 || "");
+    data.append("address[line2]", state.formData.address.line2 || "");
+    data.append("address[city]", state.formData.address.city || ""); // ✅ Added
+    data.append("address[country]", state.formData.address.country || ""); // ✅ Added
+
     data.append("gender", state.formData.gender);
     data.append("dob", state.formData.dob);
 
@@ -337,6 +353,54 @@ const MyProfile = () => {
                 العنوان
               </h4>
               <div className="space-y-4">
+                {/* ✅ City and Country Fields */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-textSoft font-medium mb-2">
+                      المدينة
+                    </label>
+                    {state.isEdit ? (
+                      <motion.input
+                        whileFocus={{ scale: 1.02 }}
+                        className="w-full bg-white border border-borderLight rounded-xl p-3 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/30 text-textMain"
+                        type="text"
+                        value={state.formData.address.city}
+                        onChange={(e) =>
+                          handleAddressChange("city", e.target.value)
+                        }
+                        placeholder="مثال: القاهرة"
+                      />
+                    ) : (
+                      <p className="text-textMain font-semibold text-lg bg-white p-3 rounded-xl border border-borderLight">
+                        {state.formData.address.city || "غير محدد"}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-textSoft font-medium mb-2">
+                      الدولة
+                    </label>
+                    {state.isEdit ? (
+                      <motion.input
+                        whileFocus={{ scale: 1.02 }}
+                        className="w-full bg-white border border-borderLight rounded-xl p-3 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/30 text-textMain"
+                        type="text"
+                        value={state.formData.address.country}
+                        onChange={(e) =>
+                          handleAddressChange("country", e.target.value)
+                        }
+                        placeholder="مثال: مصر"
+                      />
+                    ) : (
+                      <p className="text-textMain font-semibold text-lg bg-white p-3 rounded-xl border border-borderLight">
+                        {state.formData.address.country || "غير محدد"}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Street Address Fields */}
                 {state.isEdit ? (
                   <>
                     <motion.input
@@ -347,7 +411,7 @@ const MyProfile = () => {
                       onChange={(e) =>
                         handleAddressChange("line1", e.target.value)
                       }
-                      placeholder="العنوان الأساسي"
+                      placeholder="العنوان الأساسي (الشارع، رقم المبنى)"
                     />
                     <motion.input
                       whileFocus={{ scale: 1.02 }}
@@ -357,19 +421,27 @@ const MyProfile = () => {
                       onChange={(e) =>
                         handleAddressChange("line2", e.target.value)
                       }
-                      placeholder="العنوان التفصيلي (اختياري)"
+                      placeholder="العنوان التفصيلي (الشقة، الدور - اختياري)"
                     />
                   </>
                 ) : (
                   <div className="space-y-2">
-                    <p className="text-textMain font-semibold text-lg bg-white p-3 rounded-xl border border-borderLight">
-                      {state.formData.address.line1 || "غير محدد"}
-                    </p>
+                    {state.formData.address.line1 && (
+                      <p className="text-textMain font-semibold text-lg bg-white p-3 rounded-xl border border-borderLight">
+                        {state.formData.address.line1}
+                      </p>
+                    )}
                     {state.formData.address.line2 && (
                       <p className="text-textSoft bg-white p-3 rounded-xl border border-borderLight">
                         {state.formData.address.line2}
                       </p>
                     )}
+                    {!state.formData.address.line1 &&
+                      !state.formData.address.line2 && (
+                        <p className="text-textSoft bg-white p-3 rounded-xl border border-borderLight">
+                          لم يتم تحديد عنوان الشارع
+                        </p>
+                      )}
                   </div>
                 )}
               </div>

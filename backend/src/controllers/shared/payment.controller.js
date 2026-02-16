@@ -21,7 +21,7 @@ class SharedPaymentController extends BaseController {
 
       const paymentResult = await paymentService.initiatePayment(
         appointmentId,
-        userId
+        userId,
       );
 
       return this.success(res, paymentResult, "Payment initiated successfully");
@@ -53,7 +53,7 @@ class SharedPaymentController extends BaseController {
 
       const result = await paymentService.handleCallback(
         callbackData,
-        receivedHmac
+        receivedHmac,
       );
 
       if (result.success) {
@@ -82,7 +82,7 @@ class SharedPaymentController extends BaseController {
 
       const status = await paymentService.checkPaymentStatus(
         appointmentId,
-        userId
+        userId,
       );
 
       return this.success(res, status, "Payment status retrieved");
@@ -107,7 +107,7 @@ class SharedPaymentController extends BaseController {
 
       const result = await paymentService.verifyPaymentWithPaymob(
         appointmentId,
-        userId
+        userId,
       );
 
       return this.success(res, result, "Payment verification completed");
