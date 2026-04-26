@@ -1,144 +1,234 @@
 /* eslint-disable no-unused-vars */
-import React from "react";
+import React, { useContext, useEffect } from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+import {
+  Calendar,
+  BookOpen,
+  ShoppingBag,
+  Users,
+  Clock,
+  CheckCircle,
+  XCircle,
+  TrendingUp,
+} from "lucide-react";
+import { AdminContext } from "../../context/AdminContext";
+
+const StatCard = ({ icon: Icon, label, value, sub, color, delay }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ delay }}
+    className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center gap-5"
+  >
+    <div
+      className={`w-14 h-14 rounded-2xl flex items-center justify-center bg-gradient-to-br ${color}`}
+    >
+      <Icon className="w-7 h-7 text-white" />
+    </div>
+    <div>
+      <p className="text-gray-500 text-sm">{label}</p>
+      <p className="text-3xl font-bold text-gray-800">{value ?? "—"}</p>
+      {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
+    </div>
+  </motion.div>
+);
 
 const Dashboard = () => {
-  const pageVariants = {
-    initial: { opacity: 0, y: 20 },
-    animate: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.5,
-        staggerChildren: 0.1,
-      },
-    },
-  };
+  const {
+    dashStats,
+    getDashboardStats,
+    appointments,
+    getAppointments,
+    loading,
+  } = useContext(AdminContext);
+  const navigate = useNavigate();
 
-  const cardVariants = {
-    initial: { opacity: 0, y: 30 },
-    animate: { opacity: 1, y: 0 },
-    hover: {
-      y: -5,
-      boxShadow: "0 10px 30px rgba(0, 0, 0, 0.1)",
-      transition: { duration: 0.3 },
+  useEffect(() => {
+    getDashboardStats();
+    getAppointments({ limit: 5, sort: "-createdAt" });
+  }, []);
+
+  const s = dashStats || {};
+
+  const cards = [
+    {
+      icon: Calendar,
+      label: "إجمالي المواعيد",
+      value: s.totalAppointments,
+      sub: `${s.pendingAppointments || 0} قيد الانتظار`,
+      color: "from-violet-500 to-purple-600",
+      delay: 0,
     },
+    {
+      icon: BookOpen,
+      label: "الكورسات",
+      value: s.totalCourses,
+      sub: `${s.totalEnrollments || 0} اشتراك`,
+      color: "from-blue-500 to-cyan-600",
+      delay: 0.05,
+    },
+    {
+      icon: ShoppingBag,
+      label: "المنتجات",
+      value: s.totalProducts,
+      sub: `${s.totalOrders || 0} طلب`,
+      color: "from-amber-500 to-yellow-500",
+      delay: 0.1,
+    },
+    {
+      icon: Users,
+      label: "المستخدمون",
+      value: s.totalUsers,
+      sub: `${s.newUsersThisMonth || 0} هذا الشهر`,
+      color: "from-green-500 to-emerald-600",
+      delay: 0.15,
+    },
+    {
+      icon: TrendingUp,
+      label: "الإيرادات",
+      value: s.totalRevenue ? `${s.totalRevenue.toLocaleString()} جنيه` : "—",
+      color: "from-rose-500 to-pink-600",
+      delay: 0.2,
+    },
+  ];
+
+  const recentAppointments = appointments.slice(0, 5);
+
+  const statusStyle = {
+    pending: "bg-yellow-100 text-yellow-800",
+    confirmed: "bg-green-100 text-green-800",
+    completed: "bg-blue-100 text-blue-800",
+    cancelled: "bg-red-100 text-red-800",
+  };
+  const statusAr = {
+    pending: "قيد الانتظار",
+    confirmed: "مؤكد",
+    completed: "مكتمل",
+    cancelled: "ملغي",
   };
 
   return (
-    <motion.div
-      variants={pageVariants}
-      initial="initial"
-      animate="animate"
-      className="w-full max-w-7xl mx-auto p-4 sm:p-6"
-      dir="rtl"
-    >
-      <motion.div variants={pageVariants} className="mb-8">
-        <h1 className="text-3xl font-bold text-primary mb-2">لوحة التحكم</h1>
-        <p className="text-textSoft text-lg">
-          مرحباً بك في لوحة تحكم الخطيب فارما
+    <div className="space-y-8" dir="rtl">
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <h1 className="text-2xl font-bold text-gray-800">لوحة التحكم</h1>
+        <p className="text-gray-500 text-sm mt-1">
+          {new Date().toLocaleDateString("ar-EG", {
+            weekday: "long",
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          })}
         </p>
       </motion.div>
 
-      {/* Stats Cards */}
-      <motion.div
-        variants={pageVariants}
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8"
-      >
+      {/* Stat cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+        {cards.map((c) => (
+          <StatCard key={c.label} {...c} />
+        ))}
+      </div>
+
+      {/* Appointment status mini-summary */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           {
-            label: "إجمالي الخدمات",
-            value: "24",
-            color: "from-primary to-secondary",
-            icon: "📊",
+            label: "قيد الانتظار",
+            value: s.pendingAppointments,
+            icon: Clock,
+            cls: "text-yellow-600 bg-yellow-50",
           },
           {
-            label: "الحجوزات اليوم",
-            value: "8",
-            color: "from-green-500 to-emerald-600",
-            icon: "📅",
+            label: "مؤكدة",
+            value: s.confirmedAppointments,
+            icon: CheckCircle,
+            cls: "text-green-600 bg-green-50",
           },
           {
-            label: "الحجوزات النشطة",
-            value: "15",
-            color: "from-blue-500 to-cyan-500",
-            icon: "✅",
+            label: "مكتملة",
+            value: s.completedAppointments,
+            icon: CheckCircle,
+            cls: "text-blue-600 bg-blue-50",
           },
           {
-            label: "إجمالي الإيرادات",
-            value: "12,540",
-            color: "from-purple-500 to-pink-500",
-            icon: "💰",
+            label: "ملغية",
+            value: s.cancelledAppointments,
+            icon: XCircle,
+            cls: "text-red-600 bg-red-50",
           },
-        ].map((stat, index) => (
+        ].map(({ label, value, icon: Icon, cls }) => (
           <motion.div
-            key={index}
-            variants={cardVariants}
-            whileHover="hover"
-            className={`bg-gradient-to-r ${stat.color} text-white rounded-2xl p-6 shadow-lg`}
+            key={label}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className={`rounded-2xl p-5 flex items-center gap-3 ${cls}`}
           >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-3xl font-bold">{stat.value}</p>
-                <p className="text-white/90">{stat.label}</p>
-              </div>
-              <motion.span
-                className="text-3xl"
-                whileHover={{ rotate: 360 }}
-                transition={{ duration: 0.5 }}
-              >
-                {stat.icon}
-              </motion.span>
+            <Icon className="w-6 h-6" />
+            <div>
+              <p className="text-sm font-medium">{label}</p>
+              <p className="text-2xl font-bold">{value ?? 0}</p>
             </div>
           </motion.div>
         ))}
-      </motion.div>
+      </div>
 
-      {/* Quick Actions */}
+      {/* Recent appointments */}
       <motion.div
-        variants={pageVariants}
-        className="bg-white rounded-2xl shadow-lg p-6 border border-borderLight"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="bg-white rounded-2xl shadow-sm border border-gray-100"
       >
-        <h2 className="text-xl font-bold text-primary mb-4">إجراءات سريعة</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[
-            {
-              title: "إضافة خدمة جديدة",
-              desc: "إضافة خدمة طبية جديدة إلى النظام",
-              link: "/admin/add-service",
-              color: "bg-gradient-to-r from-primary to-secondary",
-            },
-            {
-              title: "عرض الحجوزات",
-              desc: "عرض وإدارة جميع حجوزات المرضى",
-              link: "/admin/appointments",
-              color: "bg-gradient-to-r from-green-500 to-emerald-600",
-            },
-            {
-              title: "إدارة الخدمات",
-              desc: "عرض وتعديل وحذف الخدمات",
-              link: "/admin/services-list",
-              color: "bg-gradient-to-r from-blue-500 to-cyan-500",
-            },
-          ].map((action, index) => (
-            <motion.a
-              key={index}
-              href={action.link}
-              variants={cardVariants}
-              whileHover={{ y: -5, scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className={`${action.color} text-white rounded-xl p-6 shadow-md hover:shadow-xl transition-all duration-300`}
-            >
-              <h3 className="text-lg font-bold mb-2">{action.title}</h3>
-              <p className="text-white/90 text-sm">{action.desc}</p>
-              <motion.div className="mt-4 text-right" whileHover={{ x: 10 }}>
-                →
-              </motion.div>
-            </motion.a>
-          ))}
+        <div className="flex items-center justify-between p-6 border-b border-gray-100">
+          <h2 className="text-lg font-bold text-gray-800">أحدث المواعيد</h2>
+          <button
+            onClick={() => navigate("/admin/appointments")}
+            className="text-sm text-violet-600 hover:underline"
+          >
+            عرض الكل
+          </button>
         </div>
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <div className="animate-spin rounded-full h-10 w-10 border-4 border-violet-500 border-t-transparent" />
+          </div>
+        ) : recentAppointments.length === 0 ? (
+          <p className="text-center text-gray-400 py-12">
+            لا توجد مواعيد حتى الآن
+          </p>
+        ) : (
+          <div className="divide-y divide-gray-50">
+            {recentAppointments.map((apt) => (
+              <div
+                key={apt._id}
+                className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors"
+              >
+                <div>
+                  <p className="font-semibold text-gray-800">
+                    {apt.name || `${apt.firstName} ${apt.lastName}`}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {apt.service?.title_ar || apt.category || "—"} · {apt.date}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-gray-500">{apt.time}</span>
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-medium ${statusStyle[apt.status] || "bg-gray-100 text-gray-600"}`}
+                  >
+                    {statusAr[apt.status] || apt.status}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </motion.div>
-    </motion.div>
+    </div>
   );
 };
 

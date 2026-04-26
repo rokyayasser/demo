@@ -1,61 +1,36 @@
+// routes/v1/doctor.routes.js
+"use strict";
 const express = require("express");
 const router = express.Router();
-
-// Controllers
-const doctorAuthController = require("../../controllers/doctor/auth.controller");
-const doctorAppointmentsController = require("../../controllers/doctor/appointments.controller");
-const doctorDashboardController = require("../../controllers/doctor/dashboard.controller");
-const downloadController = require("../../controllers/shared/download.controller");
-
-// Middlewares
+const c = require("../../controllers/doctor/doctor.controller");
+const doctorAuth = require("../../controllers/doctor/doctor.auth.controller");
 const authDoctor = require("../../middlewares/auth/doctor.auth");
 
-// Doctor login (public)
-router.post("/login", doctorAuthController.login);
+// ── PUBLIC: login (NO auth middleware) ───────────────────────────────────────
+// Must be defined BEFORE router.use(authDoctor) otherwise the middleware
+// intercepts the request and returns 401 before the handler runs.
+router.post("/login", doctorAuth.login);
 
-// Download route - NO authentication required (public access to files)
-router.get("/download-file", downloadController.downloadFile);
+// ── All routes below this line require a valid doctor JWT ────────────────────
+router.use(authDoctor);
 
-// All other routes require doctor authentication
-// Doctor calendar and dashboard
-router.get("/calendar", authDoctor, doctorDashboardController.getCalendarView);
-router.get("/stats", authDoctor, doctorDashboardController.getDoctorStats);
+// ── Appointments ──────────────────────────────────────────────────────────────
+// Static paths BEFORE dynamic /:id — otherwise Express matches "today" as :id
+router.get("/appointments/today", c.getTodayAppointments);
+router.get("/appointments/date/:date", c.getAppointmentsByDate);
+router.get("/appointments/:id/details", c.getAppointmentDetails);
+router.get("/appointments", c.getAppointments);
+router.put("/appointments/:id/status", c.updateAppointmentStatus);
 
-// Appointments management
-router.get(
-  "/appointments",
-  authDoctor,
-  doctorAppointmentsController.getDoctorAppointments
-);
-router.get(
-  "/appointments/today",
-  authDoctor,
-  doctorAppointmentsController.getTodayAppointments
-);
-router.get(
-  "/appointments/:id",
-  authDoctor,
-  doctorAppointmentsController.getAppointmentDetails
-);
-router.get(
-  "/appointments/date/:date",
-  authDoctor,
-  doctorAppointmentsController.getAppointmentsByDate
-);
-router.put(
-  "/appointments/:id/status",
-  authDoctor,
-  doctorAppointmentsController.updateAppointmentStatus
-);
+// ── Calendar ──────────────────────────────────────────────────────────────────
+router.get("/calendar", c.getCalendarView);
 
-// Health check route
-router.get("/health", authDoctor, (req, res) => {
-  res.json({
-    success: true,
-    message: "Doctor API is healthy",
-    timestamp: new Date().toISOString(),
-    doctor: req.doctorEmail,
-  });
-});
+// ── Stats ─────────────────────────────────────────────────────────────────────
+router.get("/stats", c.getStats);
+
+// ── Debug: see actual date format stored in DB ────────────────────────────────
+// GET /api/v1/doctor/debug/dates  — returns 5 sample appointments with their raw date field
+// Remove after confirming date format.
+router.get("/debug/dates", c.debugDateFormats);
 
 module.exports = router;

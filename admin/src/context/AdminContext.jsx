@@ -1,629 +1,611 @@
 /* eslint-disable react-refresh/only-export-components */
-import axios from "axios";
-import { createContext, useState, useEffect } from "react";
+import React, { createContext, useState, useCallback, useRef } from "react";
 import { toast } from "react-toastify";
+import api from "../services/api.config";
 
-export const AdminContext = createContext();
+export const AdminContext = createContext(null);
 
-const AdminContextProvider = (props) => {
+const AdminContextProvider = ({ children }) => {
   const [aToken, setAToken] = useState(
-    localStorage.getItem("aToken") ? localStorage.getItem("aToken") : ""
+    () => localStorage.getItem("aToken") || "",
   );
+
+  // ── Data states ────────────────────────────────────────────────────────────
   const [services, setServices] = useState([]);
   const [appointments, setAppointments] = useState([]);
   const [blockedSlots, setBlockedSlots] = useState([]);
-  const [courses, setCourses] = useState([]); // إضافة للحصول على الدورات
+  const [dashStats, setDashStats] = useState(null);
+  const [courses, setCourses] = useState([]);
+  const [products, setProducts] = useState([]);
+
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
+
   const backendUrl =
     import.meta.env.VITE_BACKEND_URL || "http://localhost:4000";
 
-  // Automatically load data when token changes
-  useEffect(() => {
-    if (aToken) {
-      getAllServices();
-      getAllAppointments();
-      getBlockedSlots();
-      getAllCourses(); // إضافة جلب الدورات
-    }
-  }, [aToken]);
-
-  // ============================
-  // COURSE MANAGEMENT FUNCTIONS
-  // ============================
-
-  // Get all courses
-  const getAllCourses = async () => {
-    try {
-      setLoading(true);
-      const { data } = await axios.get(`${backendUrl}/api/courses`, {
-        headers: { token: aToken },
-      });
-
-      if (data.success) {
-        setCourses(data.courses || []);
-        console.log("✅ Courses loaded:", (data.courses || []).length);
-      } else {
-        toast.error(data.message);
-        setCourses([]);
-      }
-    } catch (error) {
-      console.error("Error loading courses:", error);
-      toast.error("فشل في تحميل الدورات: " + error.message);
-      setCourses([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Create new course
-  const createCourse = async (formData) => {
-    try {
-      setLoading(true);
-      const { data } = await axios.post(
-        `${backendUrl}/api/courses/admin/create`,
-        formData,
-        {
-          headers: {
-            token: aToken,
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
-
-      if (data.success) {
-        toast.success("✅ تم إنشاء الدورة بنجاح");
-        getAllCourses();
-        return { success: true, course: data.course };
-      }
-      return { success: false, message: data.message };
-    } catch (error) {
-      toast.error("فشل في إنشاء الدورة: " + error.message);
-      return { success: false, error: error.message };
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Update course
-  const updateCourse = async (courseId, formData) => {
-    try {
-      setLoading(true);
-      const { data } = await axios.put(
-        `${backendUrl}/api/courses/admin/${courseId}`,
-        formData,
-        {
-          headers: {
-            token: aToken,
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
-
-      if (data.success) {
-        toast.success("✅ تم تحديث الدورة بنجاح");
-        getAllCourses();
-        return { success: true, course: data.course };
-      }
-      return { success: false, message: data.message };
-    } catch (error) {
-      toast.error("فشل في تحديث الدورة: " + error.message);
-      return { success: false, error: error.message };
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Delete course
-  const deleteCourse = async (courseId) => {
-    try {
-      setLoading(true);
-      const { data } = await axios.delete(
-        `${backendUrl}/api/courses/admin/${courseId}`,
-        { headers: { token: aToken } }
-      );
-
-      if (data.success) {
-        toast.success("✅ تم حذف الدورة بنجاح");
-        getAllCourses();
-        return { success: true };
-      }
-      return { success: false, message: data.message };
-    } catch (error) {
-      toast.error("فشل في حذف الدورة: " + error.message);
-      return { success: false, error: error.message };
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Add lesson to course
-  const addLesson = async (courseId, formData) => {
-    try {
-      setLoading(true);
-      const { data } = await axios.post(
-        `${backendUrl}/api/courses/admin/${courseId}/lesson`,
-        formData,
-        {
-          headers: {
-            token: aToken,
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
-
-      if (data.success) {
-        toast.success("✅ تم إضافة الدرس بنجاح");
-        return { success: true, lesson: data.lesson };
-      }
-      return { success: false, message: data.message };
-    } catch (error) {
-      toast.error("فشل في إضافة الدرس: " + error.message);
-      return { success: false, error: error.message };
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Toggle course publish status
-  const toggleCourseStatus = async (courseId, currentStatus) => {
-    try {
-      const { data } = await axios.put(
-        `${backendUrl}/api/courses/admin/${courseId}`,
-        { isPublished: !currentStatus },
-        { headers: { token: aToken } }
-      );
-
-      if (data.success) {
-        toast.success(`✅ تم ${!currentStatus ? "نشر" : "إخفاء"} الدورة`);
-        getAllCourses();
-        return { success: true };
-      }
-      return { success: false, message: data.message };
-    } catch (error) {
-      toast.error("فشل في تغيير حالة الدورة: " + error.message);
-      return { success: false, error: error.message };
-    }
-  };
-
-  // Get course by ID
-  const getCourseById = async (courseId) => {
-    try {
-      const { data } = await axios.get(
-        `${backendUrl}/api/courses/${courseId}`,
-        {
-          headers: { token: aToken },
-        }
-      );
-
-      if (data.success) {
-        return { success: true, course: data.course };
-      }
-      return { success: false, message: data.message };
-    } catch (error) {
-      console.error("Error getting course:", error);
-      return { success: false, error: error.message };
-    }
-  };
-
-  // ============================
-  // SERVICES MANAGEMENT FUNCTIONS
-  // ============================
-
-  // Get all medical services
-  const getAllServices = async () => {
-    try {
-      setLoading(true);
-      const { data } = await axios.get(`${backendUrl}/api/admin/services`, {
-        headers: { token: aToken },
-      });
-
-      if (data.success) {
-        setServices(data.services || []);
-        console.log("✅ Services loaded:", (data.services || []).length);
-      } else {
-        toast.error(data.message);
-        setServices([]);
-      }
-    } catch (error) {
-      console.error("Error loading services:", error);
-      toast.error("فشل في تحميل الخدمات: " + error.message);
-      setServices([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Change service availability
-  const changeServiceAvailability = async (serviceId) => {
-    try {
-      const { data } = await axios.post(
-        `${backendUrl}/api/admin/change-service-availability`,
-        { serviceId },
-        { headers: { token: aToken } }
-      );
-
-      if (data.success) {
-        toast.success(data.message);
-        getAllServices();
-      }
-    } catch (error) {
-      toast.error(error.message);
-    }
-  };
-
-  // Delete service
-  const deleteService = async (serviceId) => {
-    try {
-      const { data } = await axios.delete(
-        `${backendUrl}/api/admin/delete-service/${serviceId}`,
-        { headers: { token: aToken } }
-      );
-
-      if (data.success) {
-        toast.success("✅ تم حذف الخدمة بنجاح");
-        getAllServices();
-      }
-    } catch (error) {
-      toast.error("فشل في حذف الخدمة: " + error.message);
-    }
-  };
-
-  // ============================
-  // APPOINTMENTS MANAGEMENT FUNCTIONS
-  // ============================
-
-  // Get all appointments
-  const getAllAppointments = async () => {
-    try {
-      setLoading(true);
-      const { data } = await axios.get(`${backendUrl}/api/admin/appointments`, {
-        headers: { token: aToken },
-      });
-
-      if (data.success) {
-        setAppointments(data.appointments || []);
-        console.log(
-          "✅ Appointments loaded:",
-          (data.appointments || []).length
-        );
-      } else {
-        toast.error(data.message);
-        setAppointments([]);
-      }
-    } catch (error) {
-      console.error("Error loading appointments:", error);
-      toast.error("فشل في تحميل المواعيد: " + error.message);
-      setAppointments([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Get blocked slots
-  const getBlockedSlots = async () => {
-    try {
-      const { data } = await axios.get(
-        `${backendUrl}/api/admin/blocked-slots`,
-        {
-          headers: { token: aToken },
-        }
-      );
-
-      if (data.success) {
-        setBlockedSlots(data.blockedSlots || []);
-        console.log(
-          "✅ Blocked slots loaded:",
-          (data.blockedSlots || []).length
-        );
-      } else {
-        setBlockedSlots([]);
-      }
-    } catch (error) {
-      console.error("Error loading blocked slots:", error);
-      setBlockedSlots([]);
-    }
-  };
-
-  // Block time slot
-  const blockTimeSlot = async (date, time, reason = "") => {
-    try {
-      const { data } = await axios.post(
-        `${backendUrl}/api/admin/block-slot`,
-        { date, time, reason },
-        { headers: { token: aToken } }
-      );
-
-      if (data.success) {
-        toast.success("✅ تم حظر الموعد بنجاح");
-        getBlockedSlots();
-        getAllAppointments();
-        return { success: true };
-      } else {
-        toast.error(data.message);
-        return { success: false, message: data.message };
-      }
-    } catch (error) {
-      toast.error("فشل في حظر الموعد: " + error.message);
-      return { success: false, error: error.message };
-    }
-  };
-
-  // Block time slot range
-  const blockTimeSlotRange = async (
-    startDate,
-    endDate,
-    startTime,
-    endTime,
-    reason = ""
-  ) => {
-    try {
-      const { data } = await axios.post(
-        `${backendUrl}/api/admin/block-slot-range`,
-        { startDate, endDate, startTime, endTime, reason },
-        { headers: { token: aToken } }
-      );
-
-      if (data.success) {
-        toast.success(`✅ تم حظر ${data.blockedCount || 0} موعد بنجاح`);
-        getBlockedSlots();
-        getAllAppointments();
-        return { success: true, blockedCount: data.blockedCount };
-      } else {
-        toast.error(data.message);
-        return { success: false, message: data.message };
-      }
-    } catch (error) {
-      toast.error("فشل في حظر المواعيد: " + error.message);
-      return { success: false, error: error.message };
-    }
-  };
-
-  // Unblock time slot
-  const unblockTimeSlot = async (slotId) => {
-    try {
-      const { data } = await axios.delete(
-        `${backendUrl}/api/admin/unblock-slot/${slotId}`,
-        { headers: { token: aToken } }
-      );
-
-      if (data.success) {
-        toast.success("✅ تم إلغاء حظر الموعد بنجاح");
-        getBlockedSlots();
-        getAllAppointments();
-        return { success: true };
-      } else {
-        toast.error(data.message);
-        return { success: false, message: data.message };
-      }
-    } catch (error) {
-      toast.error("فشل في إلغاء حظر الموعد: " + error.message);
-      return { success: false, error: error.message };
-    }
-  };
-
-  // Update appointment status with email confirmation
-  const updateAppointmentStatus = async (appointmentId, status) => {
-    try {
-      console.log("=== UPDATING APPOINTMENT STATUS ===");
-      console.log("Appointment ID:", appointmentId);
-      console.log("New Status:", status);
-
-      const { data } = await axios.post(
-        `${backendUrl}/api/admin/update-appointment-status`,
-        {
-          appointmentId,
-          status,
-          sendEmail: status === "confirmed", // Send email only when confirming
-        },
-        { headers: { token: aToken } }
-      );
-
-      if (data.success) {
-        // Show appropriate success message
-        if (status === "confirmed" && data.emailSent) {
-          toast.success("✅ تم تأكيد الموعد وإرسال بريد التأكيد للمريض");
-        } else if (status === "confirmed" && !data.emailSent) {
-          toast.warning(
-            "✅ تم تأكيد الموعد (لم يتم إرسال البريد - " +
-              (data.emailError || "خطأ غير معروف") +
-              ")"
-          );
-        } else {
-          toast.success(
-            `✅ تم تحديث حالة الموعد إلى ${getStatusTextAr(status)}`
-          );
-        }
-
-        // Refresh appointments list to get updated data
-        await getAllAppointments();
-
-        return {
-          success: true,
-          emailSent: data.emailSent,
-          appointment: data.appointment,
-        };
-      } else {
-        toast.error(data.message);
-        return { success: false, message: data.message };
-      }
-    } catch (error) {
-      console.error("Error updating appointment:", error);
-      toast.error(
-        "فشل في تحديث الموعد: " +
-          (error.response?.data?.message || error.message)
-      );
-      return { success: false, error: error.message };
-    }
-  };
-
-  // Get appointment statistics
-  const getAppointmentStats = () => {
-    const stats = {
-      total: (appointments || []).length,
-      pending: (appointments || []).filter((a) => a?.status === "pending")
-        .length,
-      confirmed: (appointments || []).filter((a) => a?.status === "confirmed")
-        .length,
-      completed: (appointments || []).filter((a) => a?.status === "completed")
-        .length,
-      cancelled: (appointments || []).filter((a) => a?.status === "cancelled")
-        .length,
-      blocked: (appointments || []).filter((a) => a?.status === "blocked")
-        .length,
-      paid: (appointments || []).filter((a) => a?.paid).length,
-      unpaid: (appointments || []).filter((a) => !a?.paid).length,
-    };
-
-    return stats;
-  };
-
-  // ============================
-  // HELPER FUNCTIONS
-  // ============================
-
-  // Helper function to get Arabic status text
-  const getStatusTextAr = (status) => {
-    switch (status) {
-      case "pending":
-        return "قيد الانتظار";
-      case "confirmed":
-        return "مؤكد";
-      case "completed":
-        return "مكتمل";
-      case "cancelled":
-        return "ملغي";
-      case "blocked":
-        return "محجوز (ممنوع)";
-      default:
-        return status;
-    }
-  };
-
-  // Get status color for UI
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "pending":
-        return "bg-yellow-100 text-yellow-700 border-yellow-200";
-      case "confirmed":
-        return "bg-green-100 text-green-700 border-green-200";
-      case "completed":
-        return "bg-blue-100 text-blue-700 border-blue-200";
-      case "cancelled":
-        return "bg-red-100 text-red-700 border-red-200";
-      case "blocked":
-        return "bg-gray-100 text-gray-700 border-gray-200";
-      default:
-        return "bg-gray-100 text-gray-700 border-gray-200";
-    }
-  };
-
-  // Filter appointments by status
-  const filterAppointmentsByStatus = (status) => {
-    if (status === "all") return appointments || [];
-    return (appointments || []).filter(
-      (appointment) => appointment.status === status
-    );
-  };
-
-  // Search appointments
-  const searchAppointments = (searchTerm) => {
-    return (appointments || []).filter(
-      (appointment) =>
-        appointment.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        appointment.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        appointment.phone?.includes(searchTerm) ||
-        appointment.serviceId?.title_ar
-          ?.toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
-        appointment.serviceId?.title
-          ?.toLowerCase()
-          .includes(searchTerm.toLowerCase())
-    );
-  };
-
-  // ============================
-  // AUTH FUNCTIONS
-  // ============================
-
-  // Login function
+  // ── Auth ───────────────────────────────────────────────────────────────────
   const adminLogin = async (email, password) => {
+    setLoading(true);
     try {
-      const { data } = await axios.post(`${backendUrl}/api/admin/login`, {
+      const { data } = await api.post("/api/v1/admin/login", {
         email,
         password,
       });
-
       if (data.success) {
-        localStorage.setItem("aToken", data.token);
-        setAToken(data.token);
-        toast.success("✅ تم تسجيل الدخول بنجاح");
-        return { success: true };
-      } else {
-        toast.error(data.message);
-        return { success: false, message: data.message };
+        localStorage.setItem("aToken", data.data.token);
+        setAToken(data.data.token);
+        toast.success("تم تسجيل الدخول كمدير");
+        return true;
       }
-    } catch (error) {
-      console.error("Login error:", error);
-      toast.error(error.response?.data?.message || error.message);
-      return { success: false, error: error.message };
+      toast.error(data.message || "فشل تسجيل الدخول");
+      return false;
+    } catch (err) {
+      toast.error(err.response?.data?.message || "خطأ في تسجيل الدخول");
+      return false;
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Logout function
-  const adminLogout = () => {
+  const adminLogout = useCallback(() => {
     localStorage.removeItem("aToken");
     setAToken("");
     setServices([]);
     setAppointments([]);
-    setBlockedSlots([]);
-    setCourses([]); // إضافة تنظيف الدورات
-    toast.success("✅ تم تسجيل الخروج بنجاح");
-  };
+    setCourses([]);
+    setProducts([]);
+    setUsers([]);
+    toast.info("تم تسجيل خروج المدير");
+  }, []);
 
-  const value = {
-    // Authentication
-    aToken,
-    setAToken,
-    backendUrl,
-    loading,
-    adminLogin,
-    adminLogout,
+  // ── Helper: auth headers ───────────────────────────────────────────────────
+  const authHeaders = useCallback(
+    () => ({
+      headers: { token: aToken },
+    }),
+    [aToken],
+  );
 
-    // Services
-    services,
-    getAllServices,
-    changeServiceAvailability,
-    deleteService,
+  // ── Dashboard stats ────────────────────────────────────────────────────────
+  const getDashboardStats = useCallback(async () => {
+    try {
+      const { data } = await api.get(
+        "/api/v1/admin/dashboard/stats",
+        authHeaders(),
+      );
+      if (data.success) setDashStats(data.data);
+    } catch (err) {
+      console.error("getDashboardStats:", err.message);
+    }
+  }, [authHeaders]);
 
-    // Appointments
-    appointments,
-    blockedSlots,
-    getAllAppointments,
-    getBlockedSlots,
-    blockTimeSlot,
-    blockTimeSlotRange,
-    unblockTimeSlot,
-    updateAppointmentStatus,
-    getAppointmentStats,
-    getStatusTextAr,
-    getStatusColor,
-    filterAppointmentsByStatus,
-    searchAppointments,
+  // ── Services ───────────────────────────────────────────────────────────────
+  const getServices = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data } = await api.get("/api/v1/admin/services", authHeaders());
+      if (data.success) {
+        // API returns { data: { services: [...] } }
+        const raw = data.data;
+        setServices(
+          Array.isArray(raw)
+            ? raw
+            : Array.isArray(raw?.services)
+              ? raw.services
+              : raw?.data || [],
+        );
+      }
+    } catch (err) {
+      toast.error("فشل تحميل الخدمات");
+    } finally {
+      setLoading(false);
+    }
+  }, [authHeaders]);
 
-    // Courses
-    courses,
-    getAllCourses,
-    createCourse,
-    updateCourse,
-    deleteCourse,
-    addLesson,
-    toggleCourseStatus,
-    getCourseById,
-  };
+  const addService = useCallback(
+    async (formData) => {
+      setLoading(true);
+      try {
+        const { data } = await api.post("/api/v1/admin/services", formData, {
+          headers: { token: aToken, "Content-Type": "multipart/form-data" },
+        });
+        if (data.success) {
+          toast.success("تم إضافة الخدمة بنجاح");
+          await getServices();
+          return true;
+        }
+        toast.error(data.message || "فشل إضافة الخدمة");
+        return false;
+      } catch (err) {
+        toast.error(err.response?.data?.message || "فشل إضافة الخدمة");
+        return false;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [aToken, getServices],
+  );
+
+  const updateService = useCallback(
+    async (serviceId, formData) => {
+      setLoading(true);
+      try {
+        const { data } = await api.put(
+          `/api/v1/admin/services/${serviceId}`,
+          formData,
+          {
+            headers: { token: aToken, "Content-Type": "multipart/form-data" },
+          },
+        );
+        if (data.success) {
+          toast.success("تم تحديث الخدمة");
+          await getServices();
+          return true;
+        }
+        toast.error(data.message);
+        return false;
+      } catch (err) {
+        toast.error(err.response?.data?.message || "فشل تحديث الخدمة");
+        return false;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [aToken, getServices],
+  );
+
+  const deleteService = useCallback(
+    async (serviceId) => {
+      try {
+        const { data } = await api.delete(
+          `/api/v1/admin/services/${serviceId}`,
+          authHeaders(),
+        );
+        if (data.success) {
+          toast.success("تم حذف الخدمة");
+          setServices((p) => p.filter((s) => s._id !== serviceId));
+          return true;
+        }
+        return false;
+      } catch (err) {
+        toast.error("فشل حذف الخدمة");
+        return false;
+      }
+    },
+    [authHeaders],
+  );
+
+  const toggleServiceAvailability = useCallback(
+    async (serviceId) => {
+      try {
+        const { data } = await api.patch(
+          `/api/v1/admin/services/${serviceId}/toggle`,
+          {},
+          authHeaders(),
+        );
+        if (data.success) {
+          setServices((p) =>
+            p.map((s) =>
+              s._id === serviceId ? { ...s, available: !s.available } : s,
+            ),
+          );
+          toast.success("تم تغيير حالة الخدمة");
+        }
+      } catch (err) {
+        toast.error("فشل تغيير حالة الخدمة");
+      }
+    },
+    [authHeaders],
+  );
+
+  // ── Appointments ───────────────────────────────────────────────────────────
+  const getAppointments = useCallback(
+    async (filters = {}) => {
+      setLoading(true);
+      try {
+        const { data } = await api.get("/api/v1/admin/appointments", {
+          ...authHeaders(),
+          params: filters,
+        });
+        if (data.success) {
+          const raw = data.data;
+          setAppointments(
+            Array.isArray(raw) ? raw : raw?.appointments || raw?.data || [],
+          );
+        }
+      } catch (err) {
+        toast.error("فشل تحميل المواعيد");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [authHeaders],
+  );
+
+  const updateAppointmentStatus = useCallback(
+    async (appointmentId, status) => {
+      try {
+        const { data } = await api.post(
+          "/api/v1/admin/appointments/status",
+          {
+            appointmentId,
+            status,
+          },
+          authHeaders(),
+        );
+        if (data.success) {
+          setAppointments((p) =>
+            p.map((a) => (a._id === appointmentId ? { ...a, status } : a)),
+          );
+          toast.success("تم تحديث حالة الموعد");
+          return true;
+        }
+        return false;
+      } catch (err) {
+        toast.error("فشل تحديث الموعد");
+        return false;
+      }
+    },
+    [authHeaders],
+  );
+
+  // ── Blocked slots ──────────────────────────────────────────────────────────
+  const getBlockedSlots = useCallback(async () => {
+    try {
+      const { data } = await api.get(
+        "/api/v1/admin/slots/blocked",
+        authHeaders(),
+      );
+      if (data.success) setBlockedSlots(data.data?.slots || data.data || []);
+    } catch (err) {
+      console.error("getBlockedSlots:", err.message);
+    }
+  }, [authHeaders]);
+
+  const blockSlot = useCallback(
+    async (date, time, reason = "") => {
+      // BlockSlots.jsx may call blockSlot(rangeObject) with no time arg
+      // Detect that shape and send flat fields so backend handles it correctly
+      if (
+        date &&
+        typeof date === "object" &&
+        (date.startDate || date.startTime)
+      ) {
+        return blockTimeSlotRange(date);
+      }
+      try {
+        const { data } = await api.post(
+          "/api/v1/admin/slots/block",
+          { date, time, reason },
+          authHeaders(),
+        );
+        if (data.success) {
+          toast.success("تم حظر الموعد");
+          await getBlockedSlots();
+          return true;
+        }
+        return false;
+      } catch (err) {
+        toast.error("فشل حظر الموعد");
+        return false;
+      }
+    },
+    [authHeaders, getBlockedSlots],
+  );
+
+  // blockTimeSlotRange accepts { startDate, endDate, startTime, endTime, reason }
+  // This is what BlockSlots.jsx calls
+  const blockTimeSlotRange = useCallback(
+    async (rangeData) => {
+      try {
+        const body = {
+          startDate: rangeData.startDate,
+          endDate: rangeData.endDate || rangeData.startDate,
+          startTime: rangeData.startTime || "",
+          endTime: rangeData.endTime || "",
+          reason: rangeData.reason || "",
+        };
+        const { data } = await api.post(
+          "/api/v1/admin/slots/block",
+          body,
+          authHeaders(),
+        );
+        if (data.success) {
+          toast.success(data.message || "تم حظر المواعيد بنجاح");
+          await getBlockedSlots();
+          return { success: true, blockedCount: data.data?.blockedCount || 0 };
+        }
+        toast.error(data.message || "فشل حظر المواعيد");
+        return { success: false };
+      } catch (err) {
+        toast.error(err.response?.data?.message || "فشل حظر المواعيد");
+        return { success: false };
+      }
+    },
+    [authHeaders, getBlockedSlots],
+  );
+
+  const unblockSlot = useCallback(
+    async (slotId) => {
+      try {
+        const { data } = await api.delete(
+          `/api/v1/admin/slots/unblock/${slotId}`,
+          authHeaders(),
+        );
+        if (data.success) {
+          toast.success("تم إلغاء حظر الموعد");
+          setBlockedSlots((p) => p.filter((s) => s._id !== slotId));
+          return true;
+        }
+        return false;
+      } catch (err) {
+        toast.error("فشل إلغاء الحظر");
+        return false;
+      }
+    },
+    [authHeaders],
+  );
+
+  // ── Courses ────────────────────────────────────────────────────────────────
+  const getCourses = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data } = await api.get("/api/v1/courses", authHeaders());
+      if (data.success) {
+        const raw = data.data;
+        setCourses(
+          Array.isArray(raw)
+            ? raw
+            : Array.isArray(raw?.data)
+              ? raw.data
+              : Array.isArray(raw?.courses)
+                ? raw.courses
+                : [],
+        );
+      }
+    } catch (err) {
+      toast.error("فشل تحميل الكورسات");
+    } finally {
+      setLoading(false);
+    }
+  }, [authHeaders]);
+
+  const addCourse = useCallback(
+    async (formData) => {
+      setLoading(true);
+      try {
+        const { data } = await api.post("/api/v1/courses", formData, {
+          headers: { token: aToken, "Content-Type": "multipart/form-data" },
+        });
+        if (data.success) {
+          toast.success("تم إضافة الكورس بنجاح");
+          await getCourses();
+          return true;
+        }
+        toast.error(data.message);
+        return false;
+      } catch (err) {
+        toast.error(err.response?.data?.message || "فشل إضافة الكورس");
+        return false;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [aToken, getCourses],
+  );
+
+  const updateCourse = useCallback(
+    async (courseId, formData) => {
+      setLoading(true);
+      try {
+        const { data } = await api.put(
+          `/api/v1/courses/${courseId}`,
+          formData,
+          {
+            headers: { token: aToken, "Content-Type": "multipart/form-data" },
+          },
+        );
+        if (data.success) {
+          toast.success("تم تحديث الكورس");
+          await getCourses();
+          return true;
+        }
+        return false;
+      } catch (err) {
+        toast.error("فشل تحديث الكورس");
+        return false;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [aToken, getCourses],
+  );
+
+  const deleteCourse = useCallback(
+    async (courseId) => {
+      try {
+        const { data } = await api.delete(
+          `/api/v1/courses/${courseId}`,
+          authHeaders(),
+        );
+        if (data.success) {
+          toast.success("تم حذف الكورس");
+          setCourses((p) => p.filter((c) => c._id !== courseId));
+          return true;
+        }
+        return false;
+      } catch (err) {
+        toast.error("فشل حذف الكورس");
+        return false;
+      }
+    },
+    [authHeaders],
+  );
+
+  // ── Products ───────────────────────────────────────────────────────────────
+  const getProducts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data } = await api.get(
+        "/api/v1/products/admin/all",
+        authHeaders(),
+      );
+      if (data.success) {
+        const raw = data.data;
+        setProducts(
+          Array.isArray(raw)
+            ? raw
+            : Array.isArray(raw?.products)
+              ? raw.products
+              : Array.isArray(raw?.data)
+                ? raw.data
+                : [],
+        );
+      }
+    } catch (err) {
+      toast.error("فشل تحميل المنتجات");
+    } finally {
+      setLoading(false);
+    }
+  }, [authHeaders]);
+
+  const addProduct = useCallback(
+    async (formData) => {
+      setLoading(true);
+      try {
+        const { data } = await api.post("/api/v1/products", formData, {
+          headers: { token: aToken, "Content-Type": "multipart/form-data" },
+        });
+        if (data.success) {
+          toast.success("تم إضافة المنتج");
+          await getProducts();
+          return true;
+        }
+        toast.error(data.message);
+        return false;
+      } catch (err) {
+        toast.error("فشل إضافة المنتج");
+        return false;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [aToken, getProducts],
+  );
+
+  const updateProduct = useCallback(
+    async (productId, formData) => {
+      setLoading(true);
+      try {
+        const { data } = await api.put(
+          `/api/v1/products/${productId}`,
+          formData,
+          {
+            headers: { token: aToken, "Content-Type": "multipart/form-data" },
+          },
+        );
+        if (data.success) {
+          toast.success("تم تحديث المنتج");
+          await getProducts();
+          return true;
+        }
+        return false;
+      } catch (err) {
+        toast.error("فشل تحديث المنتج");
+        return false;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [aToken, getProducts],
+  );
+
+  const deleteProduct = useCallback(
+    async (productId) => {
+      try {
+        const { data } = await api.delete(
+          `/api/v1/products/${productId}`,
+          authHeaders(),
+        );
+        if (data.success) {
+          toast.success("تم حذف المنتج");
+          setProducts((p) => p.filter((p2) => p2._id !== productId));
+          return true;
+        }
+        return false;
+      } catch (err) {
+        toast.error("فشل حذف المنتج");
+        return false;
+      }
+    },
+    [authHeaders],
+  );
+
+  // ── Users (read-only) ──────────────────────────────────────────────────────
+  const getUsers = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data } = await api.get("/api/v1/admin/users", authHeaders());
+      if (data.success) {
+        const raw = data.data;
+        setUsers(Array.isArray(raw) ? raw : raw?.users || []);
+      }
+    } catch (err) {
+      console.error("getUsers:", err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [authHeaders]);
 
   return (
-    <AdminContext.Provider value={value}>
-      {props.children}
+    <AdminContext.Provider
+      value={{
+        aToken,
+        backendUrl,
+        loading,
+        // Auth
+        adminLogin,
+        adminLogout,
+        // Dashboard
+        dashStats,
+        getDashboardStats,
+        // Services
+        services,
+        getServices,
+        addService,
+        updateService,
+        deleteService,
+        toggleServiceAvailability,
+        // Appointments
+        appointments,
+        getAppointments,
+        updateAppointmentStatus,
+        // Slots
+        blockedSlots,
+        getBlockedSlots,
+        blockSlot,
+        unblockSlot,
+        blockTimeSlotRange, // real function — BlockSlots.jsx calls this
+        unblockTimeSlot: unblockSlot, // alias — BlockSlots.jsx calls this name
+        // Courses
+        courses,
+        getCourses,
+        addCourse,
+        updateCourse,
+        deleteCourse,
+        // Products
+        products,
+        getProducts,
+        addProduct,
+        updateProduct,
+        deleteProduct,
+        // Users
+        users,
+        getUsers,
+      }}
+    >
+      {children}
     </AdminContext.Provider>
   );
 };

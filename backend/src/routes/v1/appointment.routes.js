@@ -7,6 +7,30 @@ const sharedAppointmentController = require("../../controllers/shared/appointmen
 // Middlewares
 const authUser = require("../../middlewares/auth/user.auth");
 const { upload } = require("../../middlewares/upload/multer.config");
+const Appointment = require("../../models/Appointment");
+
+// GET /api/v1/appointments/my-appointments
+// Returns all appointments for the logged-in user
+router.get("/my-appointments", authUser, async (req, res) => {
+  try {
+    const appointments = await Appointment.find({
+      userId: req.userId,
+      status: { $ne: "blocked" },
+    })
+      .populate("serviceId", "title title_ar category_ar fees duration image")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const mapped = appointments.map((a) => ({
+      ...a,
+      service: a.serviceId || null,
+    }));
+
+    return res.json({ success: true, data: { appointments: mapped } });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
 
 // Public routes (no authentication required)
 router.get("/medical-services", sharedAppointmentController.getAllServices);

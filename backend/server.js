@@ -1,4 +1,5 @@
 require("dotenv").config();
+require("./src/models/Blockedslot");
 const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
@@ -30,7 +31,7 @@ app.use(
       "http://localhost:3000",
     ],
     credentials: true,
-  })
+  }),
 );
 
 app.use(express.json({ limit: "10mb" }));
@@ -51,54 +52,33 @@ app.get("/health", (req, res) => {
   });
 });
 
-// Import routes - use require inside async function to handle missing files
-let adminRoutes, userRoutes, doctorRoutes, appointmentRoutes, paymentRoutes;
+// ─── Route loader helper ───────────────────────────────────────────────────
+// Tries to mount a route file; warns but never crashes if the file is missing.
+const loadRoute = (routePath, mountPoint) => {
+  try {
+    const router = require(routePath);
+    app.use(mountPoint, router);
+    console.log(`✅ Loaded: ${mountPoint}`);
+  } catch (error) {
+    console.warn(`⚠️  Skipped ${mountPoint}: ${error.message}`);
+  }
+};
 
-// Try to load routes, but don't crash if files are missing
-try {
-  adminRoutes = require("./src/routes/v1/admin.routes");
-  app.use("/api/v1/admin", adminRoutes);
-  console.log("✅ Admin routes loaded");
-} catch (error) {
-  console.warn("⚠️ Admin routes not loaded:", error.message);
-}
+// ─── Existing routes ──────────────────────────────────────────────────────
+loadRoute("./src/routes/v1/admin.routes", "/api/v1/admin");
+loadRoute("./src/routes/v1/user.routes", "/api/v1/user");
+loadRoute("./src/routes/v1/doctor.routes", "/api/v1/doctor");
+loadRoute("./src/routes/v1/appointment.routes", "/api/v1/appointments");
+loadRoute("./src/routes/v1/payment.routes", "/api/v1/payment");
 
-try {
-  userRoutes = require("./src/routes/v1/user.routes");
-  app.use("/api/v1/user", userRoutes);
-  console.log("✅ User routes loaded");
-} catch (error) {
-  console.warn("⚠️ User routes not loaded:", error.message);
-}
-
-try {
-  doctorRoutes = require("./src/routes/v1/doctor.routes");
-  app.use("/api/v1/doctor", doctorRoutes);
-  console.log("✅ Doctor routes loaded");
-} catch (error) {
-  console.warn("⚠️ Doctor routes not loaded:", error.message);
-}
-
-try {
-  appointmentRoutes = require("./src/routes/v1/appointment.routes");
-  app.use("/api/v1/appointments", appointmentRoutes);
-  console.log("✅ Appointment routes loaded");
-} catch (error) {
-  console.warn("⚠️ Appointment routes not loaded:", error.message);
-}
-
-try {
-  paymentRoutes = require("./src/routes/v1/payment.routes");
-  app.use("/api/v1/payment", paymentRoutes);
-  console.log("✅ Payment routes loaded");
-} catch (error) {
-  console.warn("⚠️ Payment routes not loaded:", error.message);
-}
+// ─── New routes ───────────────────────────────────────────────────────────
+loadRoute("./src/routes/v1/courses.routes", "/api/v1/courses");
+loadRoute("./src/routes/v1/products.routes", "/api/v1/products");
 
 // Serve static files
 app.use("/public", express.static(path.join(__dirname, "public")));
 
-// 404 handler - FIXED: Don't use '*' wildcard in Express 5
+// 404 handler
 app.use((req, res, next) => {
   res.status(404).json({
     success: false,
@@ -107,20 +87,19 @@ app.use((req, res, next) => {
   });
 });
 
-// Error handler
+// Global error handler
 app.use((error, req, res, next) => {
   console.error("❌ Error:", error);
-  res.status(500).json({
+  res.status(error.status || 500).json({
     success: false,
     message: error.message || "Internal server error",
   });
 });
 
-// Start server
+// ─── Start ────────────────────────────────────────────────────────────────
 const startServer = async () => {
   try {
     await connectDB();
-
     app.listen(PORT, () => {
       console.log("=".repeat(50));
       console.log(`🚀 Server running on port ${PORT}`);

@@ -1,323 +1,343 @@
+// services/email.service.js
 const nodemailer = require("nodemailer");
 
-class EmailService {
-  constructor() {
-    this.transporter = null;
-    this.isConfigured = false;
-    this.configure();
-  }
+// ─── Transporter ─────────────────────────────────────────────────────────────
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.GMAIL_USER || process.env.EMAIL_USER,
+    pass: process.env.GMAIL_APP_PASSWORD || process.env.EMAIL_PASS,
+  },
+});
 
-  configure() {
-    try {
-      if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-        console.warn(
-          "⚠️ Gmail credentials missing. Email service will not work."
-        );
-        return;
+// Verify transporter on startup — logs clearly if Gmail credentials are wrong
+transporter.verify((error) => {
+  if (error) {
+    console.error("❌ Email transporter verification failed:", error.message);
+    console.error("   Check GMAIL_USER and GMAIL_APP_PASSWORD in .env");
+  } else {
+    console.log(
+      "✅ Email transporter ready —",
+      process.env.GMAIL_USER || process.env.EMAIL_USER,
+    );
+  }
+});
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+const baseStyle = `
+  font-family: 'Segoe UI', Arial, sans-serif;
+  direction: rtl;
+  text-align: right;
+  color: #1a1a2e;
+  background: #f8f9ff;
+  padding: 0;
+  margin: 0;
+`;
+
+const wrap = (body) => `
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
+<body style="${baseStyle}">
+  <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#1D014B,#3A1F66);padding:32px 40px;text-align:center;">
+      <h1 style="color:#fff;margin:0;font-size:22px;font-weight:700;">فارمكولوجي</h1>
+      <p style="color:#c4b5fd;margin:8px 0 0;font-size:14px;">د. أحمد الخطيب</p>
+    </div>
+    <!-- Body -->
+    <div style="padding:40px;">
+      ${body}
+    </div>
+    <!-- Footer -->
+    <div style="background:#f1f5ff;padding:20px 40px;text-align:center;border-top:1px solid #e8eaf6;">
+      <p style="color:#6b7280;font-size:12px;margin:0;">
+        © 2026 فارمكولوجي — جميع الحقوق محفوظة<br/>
+        للتواصل: <a href="mailto:${process.env.EMAIL_USER}" style="color:#7c3aed;">${process.env.EMAIL_USER}</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+`;
+
+// ─── 1. Course access email (sent after successful payment) ───────────────────
+/**
+ * @param {object} params
+ * @param {string} params.toEmail
+ * @param {string} params.userName
+ * @param {string} params.courseTitle
+ * @param {string} params.courseUrl      - URL of the in-app player page e.g. /learn/COURSE_ID
+ * @param {string} params.playlistUrl    - The unlisted YouTube playlist URL (stored in DB, never public)
+ */
+const sendCourseAccessEmail = async ({
+  toEmail,
+  userName,
+  courseTitle,
+  courseUrl,
+  playlistUrl,
+}) => {
+  const body = `
+    <h2 style="color:#1D014B;margin-top:0;">مبروك! تم اشتراكك بنجاح 🎉</h2>
+    <p style="color:#374151;line-height:1.8;font-size:15px;">
+      أهلاً <strong>${userName}</strong>،<br/>
+      تم تأكيد اشتراكك في كورس <strong>${courseTitle}</strong> بنجاح.
+    </p>
+
+    <div style="background:#f5f3ff;border-right:4px solid #7c3aed;border-radius:8px;padding:20px;margin:24px 0;">
+      <p style="margin:0 0 8px;font-weight:700;color:#1D014B;">كيف تبدأ الكورس:</p>
+      <ol style="margin:0;padding-right:20px;color:#374151;line-height:2;font-size:14px;">
+        <li>افتح صفحة الكورس عبر الزر أدناه</li>
+        <li>شاهد الفيديوهات بالترتيب</li>
+        <li>وضّح تقدمك بعد إنهاء كل درس</li>
+        <li>احصل على شهادتك بعد إتمام 100%</li>
+      </ol>
+    </div>
+
+    <div style="text-align:center;margin:32px 0;">
+      <a href="${courseUrl}"
+         style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#9b61db);color:#fff;
+                text-decoration:none;padding:14px 36px;border-radius:12px;font-size:16px;font-weight:700;">
+        ابدأ الكورس الآن
+      </a>
+    </div>
+
+    ${
+      playlistUrl
+        ? `
+    <div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:12px;padding:20px;margin:24px 0;text-align:center;">
+      <p style="font-weight:700;color:#92400e;margin:0 0 12px;font-size:15px;">🎥 رابط قائمة تشغيل الكورس على YouTube</p>
+      <a href="${playlistUrl}"
+         style="display:inline-block;background:#f59e0b;color:#fff;text-decoration:none;
+                padding:10px 28px;border-radius:10px;font-size:14px;font-weight:700;word-break:break-all;">
+        مشاهدة الكورس على YouTube
+      </a>
+      <p style="color:#92400e;font-size:12px;margin:12px 0 0;">
+        🔒 هذا الرابط خاص بك — يُرجى عدم مشاركته مع أي شخص آخر
+      </p>
+    </div>
+    `
+        : ""
+    }
+
+    <p style="color:#6b7280;font-size:13px;margin-top:16px;">
+      هذا البريد خاص بك — يُرجى عدم مشاركته مع أي شخص آخر.
+    </p>
+  `;
+
+  await transporter.sendMail({
+    from: `"فارمكولوجي — د. أحمد الخطيب" <${process.env.GMAIL_USER || process.env.EMAIL_USER}>`,
+    to: toEmail,
+    subject: `✅ تم تأكيد اشتراكك في كورس: ${courseTitle}`,
+    html: wrap(body),
+  });
+
+  console.log(`Course access email sent to ${toEmail}`);
+};
+
+// ─── 2. Certificate email (sent after 100% completion) ───────────────────────
+/**
+ * @param {object} params
+ * @param {string} params.toEmail
+ * @param {string} params.userName
+ * @param {string} params.courseTitle
+ * @param {string} params.completionDate  - formatted string e.g. "10 أبريل 2026"
+ * @param {Buffer} params.certificatePdf  - PDF buffer from certificate generator
+ */
+const sendCertificateEmail = async ({
+  toEmail,
+  userName,
+  courseTitle,
+  completionDate,
+  certificatePdf,
+}) => {
+  const body = `
+    <h2 style="color:#1D014B;margin-top:0;">مبروك على إتمام الكورس! 🏆</h2>
+    <p style="color:#374151;line-height:1.8;font-size:15px;">
+      أهلاً <strong>${userName}</strong>،<br/>
+      أنت أتممت كورس <strong>${courseTitle}</strong> بنجاح بتاريخ ${completionDate}.
+      شهادتك مرفقة مع هذا البريد — يمكنك طباعتها أو مشاركتها مباشرةً.
+    </p>
+
+    <div style="background:#f0fdf4;border-right:4px solid #16a34a;border-radius:8px;padding:20px;margin:24px 0;">
+      <p style="margin:0;color:#166534;font-weight:700;font-size:15px;">
+        شهادة إتمام كورس "${courseTitle}" مرفقة بهذا البريد كملف PDF.
+      </p>
+    </div>
+
+    <p style="color:#6b7280;font-size:13px;">
+      شكراً لثقتك بنا — نتمنى لك رحلة صحية ناجحة!
+    </p>
+  `;
+
+  await transporter.sendMail({
+    from: `"فارمكولوجي — د. أحمد الخطيب" <${process.env.GMAIL_USER || process.env.EMAIL_USER}>`,
+    to: toEmail,
+    subject: `🏆 شهادة إتمام كورس: ${courseTitle}`,
+    html: wrap(body),
+    attachments: [
+      {
+        filename: `certificate-${courseTitle.replace(/\s+/g, "-")}.pdf`,
+        content: certificatePdf,
+        contentType: "application/pdf",
+      },
+    ],
+  });
+
+  console.log(`Certificate email sent to ${toEmail}`);
+};
+
+// ─── Appointment status change email ─────────────────────────────────────────
+const STATUS_COLORS = {
+  confirmed: { bg: "#d1fae5", text: "#065f46", label: "مؤكد ✓" },
+  completed: { bg: "#dbeafe", text: "#1e40af", label: "مكتمل ✓" },
+  cancelled: { bg: "#fee2e2", text: "#991b1b", label: "ملغي" },
+  no_show: { bg: "#f3f4f6", text: "#374151", label: "لم يحضر" },
+  pending: { bg: "#fef9c3", text: "#92400e", label: "قيد الانتظار" },
+};
+
+const sendAppointmentStatusEmail = async ({
+  toEmail,
+  userName,
+  status,
+  statusAr,
+  serviceName,
+  date,
+  time,
+  doctorNotes,
+  appointmentUrl,
+}) => {
+  const style = STATUS_COLORS[status] || STATUS_COLORS.pending;
+
+  const body = `
+    <div style="padding:32px;">
+      <h2 style="font-size:22px;font-weight:700;margin-bottom:8px;">مرحباً ${userName} 👋</h2>
+      <p style="color:#555;margin-bottom:24px;">تم تحديث حالة موعدك</p>
+
+      <!-- Status badge -->
+      <div style="background:${style.bg};color:${style.text};border-radius:12px;padding:16px 24px;
+        text-align:center;font-size:20px;font-weight:700;margin-bottom:24px;">
+        ${style.label}
+      </div>
+
+      <!-- Appointment details -->
+      <div style="background:#f8f9ff;border-radius:12px;padding:20px;margin-bottom:20px;">
+        <table style="width:100%;border-collapse:collapse;">
+          <tr>
+            <td style="padding:8px 0;color:#666;width:40%;">الخدمة</td>
+            <td style="padding:8px 0;font-weight:600;">${serviceName}</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 0;color:#666;">التاريخ</td>
+            <td style="padding:8px 0;font-weight:600;">${date || "—"}</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 0;color:#666;">الوقت</td>
+            <td style="padding:8px 0;font-weight:600;">${time || "—"}</td>
+          </tr>
+        </table>
+      </div>
+
+      ${
+        doctorNotes
+          ? `
+      <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:16px;margin-bottom:20px;">
+        <p style="font-weight:600;color:#92400e;margin:0 0 6px;">ملاحظات الطبيب:</p>
+        <p style="color:#555;margin:0;">${doctorNotes}</p>
+      </div>`
+          : ""
       }
 
-      this.transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-          user: process.env.GMAIL_USER.trim(),
-          pass: process.env.GMAIL_APP_PASSWORD.trim(),
-        },
-        tls: {
-          rejectUnauthorized: false,
-        },
-      });
+      <a href="${appointmentUrl}"
+        style="display:block;text-align:center;background:linear-gradient(135deg,#1e4b8f,#9b61db);
+        color:#fff;text-decoration:none;padding:14px 24px;border-radius:12px;
+        font-weight:700;font-size:16px;margin-top:8px;">
+        عرض المواعيد
+      </a>
+    </div>
+  `;
 
-      this.isConfigured = true;
-      console.log("✅ Email service configured successfully");
-    } catch (error) {
-      console.error("❌ Failed to configure email service:", error);
-      this.isConfigured = false;
-    }
-  }
+  await transporter.sendMail({
+    from: `"فارمكولوجي — د. أحمد الخطيب" <${process.env.GMAIL_USER || process.env.EMAIL_USER}>`,
+    to: toEmail,
+    subject: `تحديث موعدك — ${statusAr || status}`,
+    html: wrap(body),
+  });
 
-  async verifyConnection() {
-    if (!this.isConfigured) {
-      return false;
-    }
+  console.log(`Status email sent to ${toEmail} — ${status}`);
+};
 
-    try {
-      await this.transporter.verify();
-      console.log("✅ Email connection verified");
-      return true;
-    } catch (error) {
-      console.error("❌ Email connection failed:", error);
-      return false;
-    }
-  }
+// ─── Order confirmation email ─────────────────────────────────────────────────
+const sendOrderConfirmationEmail = async ({
+  toEmail,
+  userName,
+  orderId,
+  amount,
+  items = [],
+}) => {
+  const itemRows = items
+    .map(
+      (i) => `
+    <tr>
+      <td style="padding:8px 0;border-bottom:1px solid #f1f5f9;">${i.name || i.title || "منتج"}</td>
+      <td style="padding:8px 0;border-bottom:1px solid #f1f5f9;text-align:center;">${i.quantity || 1}</td>
+      <td style="padding:8px 0;border-bottom:1px solid #f1f5f9;text-align:left;">${((i.amount_cents || 0) / 100).toLocaleString()} جنيه</td>
+    </tr>`,
+    )
+    .join("");
 
-  async sendAppointmentConfirmation(
-    appointment,
-    user,
-    service,
-    isAdmin = false,
-    adminName = ""
-  ) {
-    if (!this.isConfigured) {
-      console.warn("⚠️ Email service not configured");
-      return { success: false, error: "Email service not configured" };
-    }
+  const body = `
+    <div style="padding:32px;">
+      <h2 style="font-size:22px;font-weight:700;margin-bottom:8px;">شكراً ${userName}! 🎉</h2>
+      <p style="color:#555;margin-bottom:24px;">تم تأكيد طلبك بنجاح ومعالجة الدفع.</p>
 
-    try {
-      const subject = isAdmin
-        ? "تأكيد موعدك من إدارة العيادة - الخطيب فارما"
-        : "تأكيد حجز موعد - الخطيب فارما";
+      <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:12px;padding:16px;
+        text-align:center;margin-bottom:24px;">
+        <p style="font-size:18px;font-weight:700;color:#15803d;margin:0;">
+          ✅ تم الدفع بنجاح — ${Number(amount).toLocaleString()} جنيه
+        </p>
+      </div>
 
-      const htmlContent = this.generateAppointmentEmail(
-        appointment,
-        user,
-        service,
-        isAdmin,
-        adminName
-      );
+      <div style="background:#f8f9ff;border-radius:12px;padding:20px;margin-bottom:20px;">
+        <p style="font-weight:600;margin-bottom:12px;">تفاصيل الطلب — رقم: ${orderId}</p>
+        <table style="width:100%;border-collapse:collapse;font-size:14px;">
+          <thead>
+            <tr style="color:#666;">
+              <th style="text-align:right;padding-bottom:8px;border-bottom:2px solid #e2e8f0;">المنتج</th>
+              <th style="text-align:center;padding-bottom:8px;border-bottom:2px solid #e2e8f0;">الكمية</th>
+              <th style="text-align:left;padding-bottom:8px;border-bottom:2px solid #e2e8f0;">السعر</th>
+            </tr>
+          </thead>
+          <tbody>${itemRows}</tbody>
+          <tfoot>
+            <tr>
+              <td colspan="2" style="padding-top:12px;font-weight:700;">الإجمالي</td>
+              <td style="padding-top:12px;font-weight:700;text-align:left;">${Number(amount).toLocaleString()} جنيه</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
 
-      const mailOptions = {
-        from: `"الخطيب فارما" <${process.env.GMAIL_USER}>`,
-        to: user.email,
-        subject: subject,
-        html: htmlContent,
-        headers: {
-          "X-Priority": "1",
-          "X-MSMail-Priority": "High",
-          Importance: "high",
-        },
-      };
+      <p style="color:#666;font-size:14px;line-height:1.7;">
+        سيتم التواصل معك قريباً لتأكيد تفاصيل الشحن.
+        إذا كان لديك أي استفسار، لا تتردد في التواصل معنا.
+      </p>
+    </div>
+  `;
 
-      console.log(`📧 Sending appointment confirmation to: ${user.email}`);
-      const info = await this.transporter.sendMail(mailOptions);
+  await transporter.sendMail({
+    from: `"فارمكولوجي — د. أحمد الخطيب" <${process.env.GMAIL_USER || process.env.EMAIL_USER}>`,
+    to: toEmail,
+    subject: `✅ تأكيد طلبك رقم ${orderId}`,
+    html: wrap(body),
+  });
 
-      console.log(`✅ Email sent successfully: ${info.messageId}`);
+  console.log(`Order confirmation email sent to ${toEmail}`);
+};
 
-      if (process.env.NODE_ENV !== "production") {
-        console.log("🔗 Preview URL:", nodemailer.getTestMessageUrl(info));
-      }
-
-      return {
-        success: true,
-        messageId: info.messageId,
-        recipient: user.email,
-      };
-    } catch (error) {
-      console.error("❌ Error sending email:", error);
-      return {
-        success: false,
-        error: error.message,
-      };
-    }
-  }
-
-  generateAppointmentEmail(
-    appointment,
-    user,
-    service,
-    isAdmin = false,
-    adminName = ""
-  ) {
-    return `
-      <!DOCTYPE html>
-      <html dir="rtl" lang="ar">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>تأكيد الحجز</title>
-        <style>
-          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9; }
-          .header { background: linear-gradient(135deg, #6D28D9 0%, #A78BFA 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-          .content { background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-          .details-box { background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; border-right: 4px solid #6D28D9; }
-          .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; color: #666; font-size: 14px; }
-          h1, h2, h3 { color: #2D1B3D; }
-          .highlight { color: #6D28D9; font-weight: bold; }
-          .admin-note { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 8px; margin: 15px 0; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <h1>${isAdmin ? "✅ تم تأكيد موعدك من الإدارة" : "✅ تم تأكيد حجز موعدك"}</h1>
-          <p>مرحباً ${user.name}،</p>
-        </div>
-        
-        <div class="content">
-          <p>${isAdmin ? "يسعدنا إعلامك بأن موعدك قد تم تأكيده من قبل إدارة مركز الخطيب فارما." : "نشكرك على حجز موعد مع مركز الخطيب فارما. تم تأكيد حجزك بنجاح."}</p>
-          
-          ${
-            isAdmin
-              ? `
-          <div class="admin-note">
-            <h3>📝 ملاحظة من الإدارة:</h3>
-            <p>تم تأكيد موعدك بواسطة <strong>${adminName}</strong></p>
-          </div>
-          `
-              : ""
-          }
-          
-          <div class="details-box">
-            <h2>📋 تفاصيل الحجز</h2>
-            <p><strong>رقم الحجز:</strong> <span class="highlight">${appointment._id}</span></p>
-            <p><strong>الخدمة:</strong> ${service?.title_ar || appointment.category || "غير محدد"}</p>
-            <p><strong>التاريخ:</strong> ${appointment.date}</p>
-            ${appointment.time ? `<p><strong>الوقت:</strong> ${appointment.time}</p>` : ""}
-            <p><strong>المبلغ:</strong> ${appointment.amount} جنيه مصري</p>
-            <p><strong>حالة الدفع:</strong> ${appointment.paid ? "مدفوع ✓" : "غير مدفوع"}</p>
-            <p><strong>حالة الحجز:</strong> ${this.getStatusTextAr(appointment.status)}</p>
-          </div>
-          
-          <div class="details-box">
-            <h2>👤 معلومات المريض</h2>
-            <p><strong>الاسم:</strong> ${user.name}</p>
-            <p><strong>البريد الإلكتروني:</strong> ${user.email}</p>
-            ${user.phone ? `<p><strong>رقم الهاتف:</strong> ${user.phone}</p>` : ""}
-          </div>
-          
-          <h3>📝 تعليمات مهمة:</h3>
-          <ul>
-            <li>يرجى الحضور قبل الموعد بـ 15 دقيقة على الأقل.</li>
-            <li>احضر معك بطاقة الهوية وأي تقارير طبية سابقة.</li>
-            <li>في حالة الرغبة في إلغاء الموعد، يرجى التواصل قبل 24 ساعة على الأقل.</li>
-          </ul>
-          
-          <p>لأي استفسارات، يمكنك التواصل معنا:</p>
-          <p><strong>📞 الهاتف:</strong> +20 100 000 0000</p>
-          <p><strong>📧 البريد الإلكتروني:</strong> info@khateebpharma.com</p>
-          <p><strong>📍 العنوان:</strong> القاهرة، مصر</p>
-        </div>
-        
-        <div class="footer">
-          <p>شكراً لاختياركم مركز الخطيب فارما</p>
-          <p>نتمنى لكم الصحة والعافية</p>
-          <p>© ${new Date().getFullYear()} مركز الخطيب فارما. جميع الحقوق محفوظة.</p>
-        </div>
-      </body>
-      </html>
-    `;
-  }
-
-  getStatusTextAr(status) {
-    const statusMap = {
-      pending: "قيد الانتظار",
-      confirmed: "مؤكد",
-      completed: "مكتمل",
-      cancelled: "ملغي",
-      no_show: "لم يحضر",
-      blocked: "محظور",
-    };
-    return statusMap[status] || status;
-  }
-
-  async sendPasswordResetEmail(email, resetToken) {
-    if (!this.isConfigured) {
-      return { success: false, error: "Email service not configured" };
-    }
-
-    try {
-      const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
-
-      const htmlContent = `
-        <!DOCTYPE html>
-        <html dir="rtl" lang="ar">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>إعادة تعيين كلمة المرور</title>
-        </head>
-        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-          <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="background: #6D28D9; color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
-              <h1>إعادة تعيين كلمة المرور</h1>
-            </div>
-            <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-              <p>مرحباً،</p>
-              <p>لقد تلقينا طلباً لإعادة تعيين كلمة المرور لحسابك.</p>
-              <p>اضغط على الرابط أدناه لإعادة تعيين كلمة المرور:</p>
-              <div style="text-align: center; margin: 30px 0;">
-                <a href="${resetUrl}" style="background: #6D28D9; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
-                  إعادة تعيين كلمة المرور
-                </a>
-              </div>
-              <p>إذا لم تطلب إعادة تعيين كلمة المرور، يمكنك تجاهل هذا البريد.</p>
-              <p>هذا الرابط ساري لمدة ساعة واحدة فقط.</p>
-              <hr style="margin: 20px 0;">
-              <p>مع تحيات،<br>فريق مركز الخطيب فارما</p>
-            </div>
-          </div>
-        </body>
-        </html>
-      `;
-
-      const mailOptions = {
-        from: `"الخطيب فارما" <${process.env.GMAIL_USER}>`,
-        to: email,
-        subject: "إعادة تعيين كلمة المرور - الخطيب فارما",
-        html: htmlContent,
-      };
-
-      const info = await this.transporter.sendMail(mailOptions);
-      return { success: true, messageId: info.messageId };
-    } catch (error) {
-      console.error("Error sending password reset email:", error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  async sendWelcomeEmail(user) {
-    if (!this.isConfigured) {
-      return { success: false, error: "Email service not configured" };
-    }
-
-    try {
-      const htmlContent = `
-        <!DOCTYPE html>
-        <html dir="rtl" lang="ar">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>مرحباً بك في الخطيب فارما</title>
-        </head>
-        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-          <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="background: #6D28D9; color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
-              <h1>مرحباً بك في الخطيب فارما</h1>
-            </div>
-            <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-              <p>مرحباً ${user.name}،</p>
-              <p>نشكرك على انضمامك إلى مركز الخطيب فارما.</p>
-              <p>يمكنك الآن الاستفادة من خدماتنا الطبية المتكاملة:</p>
-              <ul>
-                <li>حجز المواعيد الطبية بسهولة</li>
-                <li>الاستشارات الطبية المتخصصة</li>
-                <li>متابعة حالتك الصحية</li>
-                <li>استلام التقارير الطبية</li>
-              </ul>
-              <p>لبدء استخدام خدماتنا، يمكنك تسجيل الدخول إلى حسابك.</p>
-              <hr style="margin: 20px 0;">
-              <p>مع تحيات،<br>فريق مركز الخطيب فارما</p>
-              <p><strong>للتواصل:</strong></p>
-              <p>📞 الهاتف: +20 100 000 0000</p>
-              <p>📧 البريد: info@khateebpharma.com</p>
-            </div>
-          </div>
-        </body>
-        </html>
-      `;
-
-      const mailOptions = {
-        from: `"الخطيب فارما" <${process.env.GMAIL_USER}>`,
-        to: user.email,
-        subject: "مرحباً بك في الخطيب فارما",
-        html: htmlContent,
-      };
-
-      const info = await this.transporter.sendMail(mailOptions);
-      return { success: true, messageId: info.messageId };
-    } catch (error) {
-      console.error("Error sending welcome email:", error);
-      return { success: false, error: error.message };
-    }
-  }
-}
-
-module.exports = new EmailService();
+module.exports = {
+  sendCourseAccessEmail,
+  sendCertificateEmail,
+  sendAppointmentStatusEmail,
+  sendOrderConfirmationEmail,
+};

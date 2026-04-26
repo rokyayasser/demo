@@ -1,3 +1,4 @@
+// controllers/user/auth.controller.js
 const BaseController = require("../BaseController");
 const User = require("../../models/User");
 const bcrypt = require("bcrypt");
@@ -15,98 +16,152 @@ class UserAuthController extends BaseController {
 
   async register(req, res) {
     try {
-      // Validate input
       const { error, value } = userValidation.register.validate(req.body);
-      if (error) return this.validationError(res, error.details);
-
-      const { name, email, password, phone } = value;
-
-      // Check if user already exists
-      const existingUser = await User.findOne({ email });
-      if (existingUser) {
-        return this.conflict(res, "User already exists");
+      if (error) {
+        const errors = error.details.map((err) => ({
+          field: err.path[0] || "unknown",
+          message: err.message,
+        }));
+        return this.validationError(res, errors);
       }
 
-      // Hash password
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(password, salt);
+      const {
+        name,
+        email,
+        password,
+        phone,
+        address,
+        gender,
+        city,
+        country,
+        healthGoal,
+        chronicDiseases,
+      } = value;
 
-      // Create user
+      // Accept birthdate sent as either key
+      const birthdateValue = value.birthdate || value.dob || null;
+
+      // Convert height / weight strings to numbers
+      const heightValue = value.height
+        ? parseFloat(value.height) || null
+        : null;
+      const weightValue = value.weight
+        ? parseFloat(value.weight) || null
+        : null;
+
+      // Duplicate email check
+      const existing = await User.findOne({ email });
+      if (existing) return this.conflict(res, "البريد الإلكتروني مسجل بالفعل");
+
+      // Normalise address
+      let processedAddress = "";
+      if (address && typeof address === "object") {
+        const hasData = address.line1 || address.city || address.country;
+        processedAddress = hasData ? address : "";
+      } else if (typeof address === "string") {
+        processedAddress = address;
+      }
+
+      // ── Create user with the PLAIN password ──────────────────────────────
+      // The pre-save hook in User.js will hash it automatically.
+      // Do NOT call bcrypt.hash here — that would cause double-hashing.
       const user = new User({
         name,
         email,
-        password: hashedPassword,
+        password, // ← plain text; hook hashes it
         phone,
+        address: processedAddress,
+        gender: gender || "غير محدد",
+        dob: birthdateValue,
+        height: heightValue,
+        weight: weightValue,
+        city: city || "",
+        country: country || "",
+        healthGoal: healthGoal || "",
+        chronicDiseases: chronicDiseases || "لا يوجد",
       });
 
       await user.save();
 
-      // Generate token
       const token = jwt.sign(
         { id: user._id, email: user.email, role: "user" },
         process.env.JWT_SECRET,
-        { expiresIn: "7d" }
+        { expiresIn: "7d" },
       );
 
-      // Remove password from response
-      user.password = undefined;
+      const userResponse = user.toObject();
+      delete userResponse.password;
 
-      return this.success(res, { user, token }, "User registered successfully");
-    } catch (error) {
-      return this.error(res, error.message);
+      return this.success(
+        res,
+        { user: userResponse, token },
+        "تم إنشاء الحساب بنجاح",
+      );
+    } catch (err) {
+      console.error("Registration error:", err);
+      return this.error(res, "حدث خطأ أثناء إنشاء الحساب");
     }
   }
 
   async login(req, res) {
     try {
-      // Validate input
       const { error, value } = userValidation.login.validate(req.body);
-      if (error) return this.validationError(res, error.details);
+      if (error) {
+        const errors = error.details.map((err) => ({
+          field: err.path[0] || "unknown",
+          message: err.message,
+        }));
+        return this.validationError(res, errors);
+      }
 
       const { email, password } = value;
 
-      // Find user
       const user = await User.findOne({ email }).select("+password");
       if (!user) {
-        return this.unauthorized(res, "Invalid email or password");
-      }
-
-      // Check if account is locked
-      if (user.isLocked()) {
-        return this.tooManyRequests(
+        return this.unauthorized(
           res,
-          "Account is locked. Please try again later."
+          "البريد الإلكتروني أو كلمة المرور غير صحيحة",
         );
       }
 
-      // Check password
-      const isMatch = await bcrypt.compare(password, user.password);
-      if (!isMatch) {
-        // Increment login attempts
-        await user.incLoginAttempts();
-        return this.unauthorized(res, "Invalid email or password");
+      if (user.isLocked()) {
+        return this.tooManyRequests(
+          res,
+          "الحساب مقفل. يرجى المحاولة مرة أخرى لاحقاً",
+        );
       }
 
-      // Reset login attempts on successful login
-      await user.resetLoginAttempts(); // ✅ Use instance method, not static method
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) {
+        await user.incLoginAttempts();
+        return this.unauthorized(
+          res,
+          "البريد الإلكتروني أو كلمة المرور غير صحيحة",
+        );
+      }
 
-      // Update last login
+      await user.resetLoginAttempts();
       user.lastLogin = new Date();
-      await user.save();
+      // Use updateOne to avoid triggering the password pre-save hook
+      await User.updateOne({ _id: user._id }, { lastLogin: user.lastLogin });
 
-      // Generate token
       const token = jwt.sign(
         { id: user._id, email: user.email, role: "user" },
         process.env.JWT_SECRET,
-        { expiresIn: "7d" }
+        { expiresIn: "7d" },
       );
 
-      // Remove password from response
-      user.password = undefined;
+      const userResponse = user.toObject();
+      delete userResponse.password;
 
-      return this.success(res, { user, token }, "Login successful");
-    } catch (error) {
-      return this.error(res, error.message);
+      return this.success(
+        res,
+        { user: userResponse, token },
+        "تم تسجيل الدخول بنجاح",
+      );
+    } catch (err) {
+      console.error("Login error:", err);
+      return this.error(res, "حدث خطأ أثناء تسجيل الدخول");
     }
   }
 }

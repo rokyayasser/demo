@@ -1,336 +1,296 @@
 /* eslint-disable no-unused-vars */
-import React, { useContext, useState } from "react";
-import { assets } from "../../assets/assets";
+import React, { useState, useContext } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { AdminContext } from "../../context/AdminContext";
-import { toast } from "react-toastify";
-import axios from "axios";
-import { AnimatePresence, motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+import { Upload, Plus, X, Image as ImageIcon } from "lucide-react";
+import { SERVICE_CATEGORIES } from "../../utils/constants";
 
 const AddService = () => {
-  const [serviceImg, setServiceImg] = useState(false);
-  const [title, setTitle] = useState("");
-  const [title_ar, setTitleAr] = useState("");
-  const [category, setCategory] = useState("Laboratory");
-  const [category_ar, setCategoryAr] = useState("المعامل");
-  const [description, setDescription] = useState("");
-  const [fees, setFees] = useState("");
-  const [duration, setDuration] = useState("30 minutes");
-  const [features, setFeatures] = useState([""]);
+  const { addService } = useContext(AdminContext);
+  const navigate = useNavigate();
 
-  const { backendUrl, aToken } = useContext(AdminContext);
+  const [formData, setFormData] = useState({
+    title: "",
+    title_ar: "",
+    category: "Endocrinology",
+    category_ar: "الغدد الصماء",
+    description: "",
+    fees: "",
+    duration: "30 minutes",
+    features: [""],
+    image: null,
+  });
 
-  const pageVariants = {
-    initial: { opacity: 0, y: 20 },
-    animate: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.5,
-        staggerChildren: 0.1,
-      },
-    },
-  };
+  const [imagePreview, setImagePreview] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  const itemVariants = {
-    initial: { opacity: 0, y: 10 },
-    animate: { opacity: 1, y: 0 },
-  };
-
-  const addFeature = () => {
-    setFeatures([...features, ""]);
-  };
-
-  const removeFeature = (index) => {
-    const newFeatures = features.filter((_, i) => i !== index);
-    setFeatures(newFeatures);
-  };
-
-  const updateFeature = (index, value) => {
-    const newFeatures = [...features];
-    newFeatures[index] = value;
-    setFeatures(newFeatures);
-  };
-
-  const onSubmitHandler = async (e) => {
-    e.preventDefault();
-
-    try {
-      if (!serviceImg) {
-        return toast.error("يرجى رفع صورة الخدمة");
-      }
-
-      const validFeatures = features.filter((f) => f.trim() !== "");
-      if (validFeatures.length === 0) {
-        return toast.error("يرجى إضافة ميزة واحدة على الأقل");
-      }
-
-      const formData = new FormData();
-      formData.append("image", serviceImg);
-      formData.append("title", title);
-      formData.append("title_ar", title_ar);
-      formData.append("category", category);
-      formData.append("category_ar", category_ar);
-      formData.append("description", description);
-      formData.append("fees", Number(fees));
-      formData.append("duration", duration);
-      formData.append("features", JSON.stringify(validFeatures));
-
-      const { data } = await axios.post(
-        `${backendUrl}/api/admin/add-service`,
-        formData,
-        {
-          headers: { token: aToken },
-        }
-      );
-
-      if (data.success) {
-        toast.success(data.message);
-        setServiceImg(false);
-        setTitle("");
-        setTitleAr("");
-        setCategory("Laboratory");
-        setCategoryAr("المعامل");
-        setDescription("");
-        setFees("");
-        setDuration("30 minutes");
-        setFeatures([""]);
-      } else {
-        toast.error(data.message);
-      }
-    } catch (error) {
-      toast.error(error.message);
-      console.log(error);
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setFormData({ ...formData, image: file });
+      setImagePreview(URL.createObjectURL(file));
     }
   };
 
-  const categories = [
-    { en: "Endocrinology", ar: "الغدد الصماء" },
-    { en: "Gastroenterology", ar: "أمراض الجهاز الهضمي" },
-    { en: "Nutrition", ar: "التغذية" },
-    { en: "ChronicDiseases", ar: "الأمراض المزمنة" },
-    { en: "Orthopedics", ar: "المفاصل والعظام" },
-    { en: "SpecialConsultation", ar: "استشارات خاصة" },
-  ];
+  const addFeature = () => {
+    setFormData({
+      ...formData,
+      features: [...formData.features, ""],
+    });
+  };
+
+  const removeFeature = (index) => {
+    const newFeatures = formData.features.filter((_, i) => i !== index);
+    setFormData({ ...formData, features: newFeatures });
+  };
+
+  const updateFeature = (index, value) => {
+    const newFeatures = [...formData.features];
+    newFeatures[index] = value;
+    setFormData({ ...formData, features: newFeatures });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const formDataToSend = new FormData();
+      formDataToSend.append("image", formData.image);
+      formDataToSend.append("title", formData.title);
+      formDataToSend.append("title_ar", formData.title_ar);
+      formDataToSend.append("category", formData.category);
+      formDataToSend.append("category_ar", formData.category_ar);
+      formDataToSend.append("description", formData.description);
+      formDataToSend.append("fees", formData.fees);
+      formDataToSend.append("duration", formData.duration);
+      formDataToSend.append(
+        "features",
+        JSON.stringify(formData.features.filter((f) => f.trim())),
+      );
+
+      const result = await addService(formDataToSend);
+      if (result.success) {
+        navigate("/admin/services-list");
+      }
+    } catch (error) {
+      console.error("Error adding service:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <motion.form
-      onSubmit={onSubmitHandler}
-      variants={pageVariants}
-      initial="initial"
-      animate="animate"
-      className="m-5 w-full"
-      dir="rtl"
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="max-w-4xl mx-auto"
     >
-      <motion.p
-        variants={itemVariants}
-        className="mb-3 text-lg font-medium text-primary"
-      >
-        إضافة خدمة طبية
-      </motion.p>
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+        <h1 className="text-2xl font-bold text-gray-800 mb-2">
+          إضافة خدمة طبية جديدة
+        </h1>
+        <p className="text-gray-500 mb-8">أدخل تفاصيل الخدمة الطبية الجديدة</p>
 
-      <motion.div
-        variants={itemVariants}
-        className="bg-white px-8 py-8 border border-borderLight rounded w-full max-w-4xl max-h-[80vh] overflow-y-scroll"
-      >
-        {/* Image Upload */}
-        <motion.div
-          whileHover={{ scale: 1.02 }}
-          className="flex items-center gap-4 mb-8 text-textSoft"
-        >
-          <label htmlFor="service-img">
-            <img
-              className="w-24 h-24 bg-lightBg rounded-lg cursor-pointer object-cover border-2 border-borderLight"
-              src={
-                serviceImg
-                  ? URL.createObjectURL(serviceImg)
-                  : assets.upload_area
-              }
-              alt=""
-            />
-          </label>
-          <input
-            onChange={(e) => setServiceImg(e.target.files[0])}
-            type="file"
-            id="service-img"
-            hidden
-            accept="image/*"
-          />
-          <p>
-            رفع صورة الخدمة
-            <br />
-            <span className="text-xs text-textSoft">اختر صورة واضحة</span>
-          </p>
-        </motion.div>
-
-        <div className="flex flex-col lg:flex-row items-start gap-10 text-textMain">
-          {/* Left Column */}
-          <div className="w-full lg:flex-1 flex flex-col gap-4">
-            {[
-              "Title English",
-              "Title Arabic",
-              "Category",
-              "Fees",
-              "Duration",
-            ].map((label, index) => (
-              <motion.div
-                key={index}
-                variants={itemVariants}
-                className="flex-1 flex flex-col gap-1"
-              >
-                <p>
-                  {label === "Title English"
-                    ? "اسم الخدمة (English)"
-                    : label === "Title Arabic"
-                    ? "اسم الخدمة (عربي)"
-                    : label === "Category"
-                    ? "التخصص"
-                    : label === "Fees"
-                    ? "السعر (جنيه)"
-                    : "المدة"}
-                </p>
-
-                {label === "Category" ? (
-                  <select
-                    className="border border-borderLight bg-lightBg rounded px-3 py-2 focus:outline-none focus:border-secondary"
-                    onChange={(e) => {
-                      const selectedIndex = e.target.selectedIndex;
-                      setCategory(e.target.value);
-                      setCategoryAr(categories[selectedIndex].ar);
-                    }}
-                    value={category}
-                  >
-                    {categories.map((cat, idx) => (
-                      <option key={idx} value={cat.en}>
-                        {cat.ar} - {cat.en}
-                      </option>
-                    ))}
-                  </select>
-                ) : label === "Duration" ? (
-                  <select
-                    className="border border-borderLight bg-lightBg rounded px-3 py-2 focus:outline-none focus:border-secondary"
-                    onChange={(e) => setDuration(e.target.value)}
-                    value={duration}
-                  >
-                    <option value="15 minutes">15 دقيقة</option>
-                    <option value="20 minutes">20 دقيقة</option>
-                    <option value="30 minutes">30 دقيقة</option>
-                    <option value="45 minutes">45 دقيقة</option>
-                    <option value="1 hour">ساعة</option>
-                    <option value="1.5 hours">ساعة ونصف</option>
-                    <option value="2 hours">ساعتين</option>
-                  </select>
-                ) : label === "Title English" ? (
-                  <input
-                    className="border border-borderLight bg-lightBg rounded px-3 py-2 focus:outline-none focus:border-secondary"
-                    onChange={(e) => setTitle(e.target.value)}
-                    value={title}
-                    type="text"
-                    placeholder="Complete Blood Test"
-                    required
-                  />
-                ) : label === "Title Arabic" ? (
-                  <input
-                    className="border border-borderLight bg-lightBg rounded px-3 py-2 focus:outline-none focus:border-secondary"
-                    onChange={(e) => setTitleAr(e.target.value)}
-                    value={title_ar}
-                    type="text"
-                    placeholder="تحليل دم شامل"
-                    required
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Image Upload */}
+          <div>
+            <label className="block text-gray-700 font-medium mb-2">
+              صورة الخدمة
+            </label>
+            <div className="flex items-center gap-6">
+              <div className="relative">
+                {imagePreview ? (
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    className="w-32 h-32 object-cover rounded-xl border-2 border-gray-200"
                   />
                 ) : (
-                  <input
-                    className="border border-borderLight bg-lightBg rounded px-3 py-2 focus:outline-none focus:border-secondary"
-                    onChange={(e) => setFees(e.target.value)}
-                    value={fees}
-                    type="number"
-                    placeholder="300"
-                    required
-                  />
+                  <div className="w-32 h-32 bg-gray-100 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center">
+                    <ImageIcon className="w-8 h-8 text-gray-400" />
+                  </div>
                 )}
-              </motion.div>
-            ))}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="absolute inset-0 opacity-0 cursor-pointer"
+                  required
+                />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">اختر صورة للخدمة</p>
+                <p className="text-xs text-gray-500 mt-1">الحد الأقصى: 10MB</p>
+              </div>
+            </div>
           </div>
 
-          {/* Right Column */}
-          <div className="w-full lg:flex-1 flex flex-col gap-4">
-            {/* Description */}
-            <motion.div
-              variants={itemVariants}
-              className="flex-1 flex flex-col gap-1"
-            >
-              <p>الوصف</p>
-              <textarea
-                onChange={(e) => setDescription(e.target.value)}
-                value={description}
-                className="border border-borderLight bg-lightBg rounded px-3 py-2 focus:outline-none focus:border-secondary"
-                placeholder="وصف شامل للخدمة الطبية..."
-                rows={4}
+          {/* Basic Info */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-gray-700 font-medium mb-2">
+                اسم الخدمة (English)
+              </label>
+              <input
+                type="text"
+                value={formData.title}
+                onChange={(e) =>
+                  setFormData({ ...formData, title: e.target.value })
+                }
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
                 required
               />
-            </motion.div>
+            </div>
+            <div>
+              <label className="block text-gray-700 font-medium mb-2">
+                اسم الخدمة (عربي)
+              </label>
+              <input
+                type="text"
+                value={formData.title_ar}
+                onChange={(e) =>
+                  setFormData({ ...formData, title_ar: e.target.value })
+                }
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
+                required
+              />
+            </div>
+          </div>
 
-            {/* Features */}
-            <motion.div
-              variants={itemVariants}
-              className="flex-1 flex flex-col gap-1"
-            >
-              <div className="flex items-center justify-between">
-                <p>المميزات</p>
-                <motion.button
-                  type="button"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={addFeature}
-                  className="text-primary text-sm hover:underline"
-                >
-                  + إضافة ميزة
-                </motion.button>
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-gray-700 font-medium mb-2">
+                التخصص
+              </label>
+              <select
+                value={formData.category}
+                onChange={(e) => {
+                  const selected = SERVICE_CATEGORIES.find(
+                    (c) => c.en === e.target.value,
+                  );
+                  setFormData({
+                    ...formData,
+                    category: e.target.value,
+                    category_ar: selected?.ar || "",
+                  });
+                }}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
+                required
+              >
+                {SERVICE_CATEGORIES.map((cat) => (
+                  <option key={cat.en} value={cat.en}>
+                    {cat.ar} - {cat.en}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-gray-700 font-medium mb-2">
+                السعر (جنيه)
+              </label>
+              <input
+                type="number"
+                value={formData.fees}
+                onChange={(e) =>
+                  setFormData({ ...formData, fees: e.target.value })
+                }
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
+                required
+              />
+            </div>
+          </div>
 
+          <div>
+            <label className="block text-gray-700 font-medium mb-2">
+              الوصف
+            </label>
+            <textarea
+              value={formData.description}
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
+              rows="4"
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
+              required
+            />
+          </div>
+
+          {/* Features */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-gray-700 font-medium">
+                المميزات
+              </label>
+              <button
+                type="button"
+                onClick={addFeature}
+                className="flex items-center gap-1 text-primary hover:text-secondary transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span className="text-sm">إضافة ميزة</span>
+              </button>
+            </div>
+            <div className="space-y-3">
               <AnimatePresence>
-                {features.map((feature, index) => (
+                {formData.features.map((feature, index) => (
                   <motion.div
                     key={index}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 20 }}
-                    className="flex gap-2 mt-2"
+                    className="flex gap-2"
                   >
                     <input
-                      className="border border-borderLight bg-lightBg rounded px-3 py-2 flex-1 focus:outline-none focus:border-secondary"
                       type="text"
-                      placeholder={`الميزة ${index + 1}`}
                       value={feature}
                       onChange={(e) => updateFeature(index, e.target.value)}
+                      placeholder={`الميزة ${index + 1}`}
+                      className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
                     />
-                    {features.length > 1 && (
-                      <motion.button
+                    {formData.features.length > 1 && (
+                      <button
                         type="button"
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
                         onClick={() => removeFeature(index)}
-                        className="text-red-500 px-2 hover:text-red-600"
+                        className="px-3 text-red-500 hover:text-red-600"
                       >
-                        ✕
-                      </motion.button>
+                        <X className="w-5 h-5" />
+                      </button>
                     )}
                   </motion.div>
                 ))}
               </AnimatePresence>
-            </motion.div>
+            </div>
           </div>
-        </div>
 
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          type="submit"
-          className="bg-primary px-10 py-3 mt-6 text-white rounded-full hover:bg-secondary transition-all"
-        >
-          إضافة الخدمة
-        </motion.button>
-      </motion.div>
-    </motion.form>
+          {/* Submit Button */}
+          <div className="flex gap-4 pt-4">
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 bg-gradient-to-r from-primary to-secondary text-white py-3 rounded-xl font-bold hover:from-secondary hover:to-primary transition-all disabled:opacity-70"
+            >
+              {loading ? (
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>جاري الإضافة...</span>
+                </div>
+              ) : (
+                "إضافة الخدمة"
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/admin/services-list")}
+              className="px-8 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+            >
+              إلغاء
+            </button>
+          </div>
+        </form>
+      </div>
+    </motion.div>
   );
 };
 

@@ -1,281 +1,212 @@
 /* eslint-disable no-unused-vars */
-import React, { useState, useEffect, useContext } from "react";
-
-import axios from "axios";
-import { toast } from "react-toastify";
+import React, { useContext, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
-  FiUsers,
-  FiCalendar,
-  FiCheckCircle,
-  FiClock,
-  FiDollarSign,
-  FiTrendingUp,
-} from "react-icons/fi";
+  CheckCircle,
+  Clock,
+  XCircle,
+  Users,
+  TrendingUp,
+  Star,
+} from "lucide-react";
 import { DoctorContext } from "../../context/DoctorContext";
 
+const BAR_COLORS = {
+  pending: "#fbbf24",
+  confirmed: "#10b981",
+  completed: "#3b82f6",
+  cancelled: "#f87171",
+};
+
+const MiniBar = ({ value, max, color }) => (
+  <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+    <motion.div
+      initial={{ width: 0 }}
+      animate={{ width: max > 0 ? `${(value / max) * 100}%` : "0%" }}
+      transition={{ duration: 0.8, ease: "easeOut" }}
+      className="h-2.5 rounded-full"
+      style={{ backgroundColor: color }}
+    />
+  </div>
+);
+
 const DoctorStats = () => {
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [debugInfo, setDebugInfo] = useState("");
-  const { backendUrl, dToken } = useContext(DoctorContext);
-
-  const fetchStats = async () => {
-    setLoading(true);
-    try {
-      console.log("Fetching stats from:", `${backendUrl}/api/doctor/stats`);
-
-      const response = await axios.get(`${backendUrl}/api/doctor/stats`, {
-        headers: { token: dToken },
-      });
-
-      console.log("Stats API response:", response.data);
-
-      if (response.data.success) {
-        setStats(response.data.stats);
-
-        // Set debug info
-        if (response.data.debug) {
-          setDebugInfo(`
-            Total: ${response.data.debug.totalAppointments}, 
-            Paid: ${response.data.debug.paidAppointments}, 
-            With Amount: ${response.data.debug.appointmentsWithAmount}, 
-            With Fees: ${response.data.debug.appointmentsWithServiceFees}
-          `);
-        }
-
-        toast.success("تم تحميل الإحصائيات بنجاح");
-      } else {
-        toast.error("فشل في تحميل الإحصائيات: " + response.data.message);
-      }
-    } catch (error) {
-      console.error("Error fetching stats:", error);
-      toast.error("فشل في تحميل الإحصائيات");
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  const { doctorStats, getDoctorStats, loading } = useContext(DoctorContext);
   useEffect(() => {
-    fetchStats();
-  }, [dToken]);
+    getDoctorStats();
+  }, []);
 
-  // Refresh stats manually
-  const refreshStats = () => {
-    fetchStats();
-  };
+  const s = doctorStats || {};
+  const totalApts =
+    (s.pending || 0) +
+    (s.confirmed || 0) +
+    (s.completed || 0) +
+    (s.cancelled || 0);
 
-  const statCards = [
+  const statRows = [
     {
-      title: "إجمالي المواعيد",
-      value: stats?.totalAppointments || 0,
-      icon: FiUsers,
-      color: "from-blue-500 to-blue-600",
-      bgColor: "bg-blue-50",
-      subtitle: "جميع المواعيد المسجلة",
+      label: "قيد الانتظار",
+      key: "pending",
+      icon: Clock,
+      color: BAR_COLORS.pending,
     },
     {
-      title: "اليوم",
-      value: stats?.todayAppointments || 0,
-      icon: FiCalendar,
-      color: "from-green-500 to-green-600",
-      bgColor: "bg-green-50",
-      subtitle: "مواعيد اليوم فقط",
+      label: "مؤكدة",
+      key: "confirmed",
+      icon: CheckCircle,
+      color: BAR_COLORS.confirmed,
     },
     {
-      title: "هذا الأسبوع",
-      value: stats?.weekAppointments || 0,
-      icon: FiTrendingUp,
-      color: "from-purple-500 to-purple-600",
-      bgColor: "bg-purple-50",
-      subtitle: "آخر 7 أيام",
+      label: "مكتملة",
+      key: "completed",
+      icon: CheckCircle,
+      color: BAR_COLORS.completed,
     },
     {
-      title: "هذا الشهر",
-      value: stats?.monthAppointments || 0,
-      icon: FiCalendar,
-      color: "from-orange-500 to-orange-600",
-      bgColor: "bg-orange-50",
-      subtitle: "آخر 30 يوم",
-    },
-    {
-      title: "مكتملة",
-      value: stats?.completedAppointments || 0,
-      icon: FiCheckCircle,
-      color: "from-teal-500 to-teal-600",
-      bgColor: "bg-teal-50",
-      subtitle: "تم إكمالها",
-    },
-    {
-      title: "قيد الانتظار",
-      value: stats?.pendingAppointments || 0,
-      icon: FiClock,
-      color: "from-yellow-500 to-yellow-600",
-      bgColor: "bg-yellow-50",
-      subtitle: "في انتظار التأكيد",
-    },
-    {
-      title: "مؤكدة",
-      value: stats?.confirmedAppointments || 0,
-      icon: FiCheckCircle,
-      color: "from-indigo-500 to-indigo-600",
-      bgColor: "bg-indigo-50",
-      subtitle: "تم تأكيدها",
-    },
-    {
-      title: "إجمالي الإيرادات",
-      value: `${stats?.totalRevenue?.toLocaleString() || 0} ج.م`,
-      icon: FiDollarSign,
-      color: "from-emerald-500 to-emerald-600",
-      bgColor: "bg-emerald-50",
-      subtitle: "من المواعيد المدفوعة",
+      label: "ملغية",
+      key: "cancelled",
+      icon: XCircle,
+      color: BAR_COLORS.cancelled,
     },
   ];
 
-  if (loading && !stats) {
+  const cards = [
+    {
+      label: "إجمالي المواعيد",
+      value: s.totalAppointments || totalApts,
+      icon: Users,
+      color: "from-blue-500 to-cyan-500",
+    },
+    {
+      label: "هذا الشهر",
+      value: s.thisMonth || 0,
+      icon: TrendingUp,
+      color: "from-green-500 to-emerald-500",
+    },
+    {
+      label: "هذا الأسبوع",
+      value: s.thisWeek || 0,
+      icon: Clock,
+      color: "from-violet-500 to-purple-500",
+    },
+    {
+      label: "تقييم المرضى",
+      value: s.rating ? `${s.rating.toFixed(1)} ★` : "—",
+      icon: Star,
+      color: "from-amber-500 to-yellow-500",
+    },
+  ];
+
+  if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 space-y-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-        <p className="text-gray-600">جارٍ تحميل الإحصائيات...</p>
+      <div className="flex justify-center py-20">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-white rounded-xl p-6 shadow">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800 mb-2">
-              الإحصائيات
-            </h1>
-            <p className="text-gray-600">نظرة عامة على أداء العيادة</p>
-            {debugInfo && (
-              <p className="text-xs text-gray-500 mt-2">تصحيح: {debugInfo}</p>
-            )}
-          </div>
+    <div className="space-y-8" dir="rtl">
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <h1 className="text-2xl font-bold text-gray-800">الإحصائيات</h1>
+      </motion.div>
 
-          <div className="flex items-center gap-3">
-            <button
-              onClick={refreshStats}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2"
-            >
-              <FiTrendingUp className="w-5 h-5" />
-              تحديث الإحصائيات
-            </button>
-          </div>
-        </div>
-
-        {stats && (
-          <div className="mt-4 text-sm text-gray-500">
-            آخر تحديث: {new Date().toLocaleString("ar-EG")}
-          </div>
-        )}
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statCards.map((stat, index) => (
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {cards.map(({ label, value, icon: Icon, color }, i) => (
           <motion.div
-            key={index}
+            key={label}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className={`${stat.bgColor} rounded-xl p-6 shadow border border-gray-100`}
+            transition={{ delay: i * 0.05 }}
+            className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center gap-4"
           >
-            <div className="flex items-center justify-between mb-4">
-              <div className={`p-3 rounded-lg bg-gradient-to-r ${stat.color}`}>
-                <stat.icon className="w-6 h-6 text-white" />
-              </div>
-              <span className="text-sm text-gray-600 font-medium">
-                {stat.title}
-              </span>
+            <div
+              className={`w-12 h-12 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center`}
+            >
+              <Icon className="w-6 h-6 text-white" />
             </div>
-            <div className="text-3xl font-bold text-gray-800 mb-2">
-              {stat.value}
+            <div>
+              <p className="text-gray-500 text-xs">{label}</p>
+              <p className="text-2xl font-bold text-gray-800">{value}</p>
             </div>
-            {stat.subtitle && (
-              <div className="text-sm text-gray-500">{stat.subtitle}</div>
-            )}
           </motion.div>
         ))}
       </div>
 
-      {/* Completion Rate & Average Daily */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Completion Rate */}
-        <div className="bg-white rounded-xl p-6 shadow">
-          <h3 className="text-lg font-bold text-gray-800 mb-4">معدل الإكمال</h3>
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <div className="h-4 bg-gray-200 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-green-500 to-teal-400 transition-all duration-500"
-                  style={{ width: `${stats?.completionRate || 0}%` }}
-                ></div>
+      {/* Status breakdown */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6"
+      >
+        <h2 className="text-lg font-bold text-gray-800 mb-6">
+          توزيع المواعيد حسب الحالة
+        </h2>
+        <div className="space-y-5">
+          {statRows.map(({ label, key, icon: Icon, color }) => {
+            const val = s[key] || 0;
+            const pct = totalApts > 0 ? Math.round((val / totalApts) * 100) : 0;
+            return (
+              <div key={key}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-2">
+                    <Icon className="w-4 h-4" style={{ color }} />
+                    <span className="text-sm font-medium text-gray-700">
+                      {label}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-gray-800">
+                      {val}
+                    </span>
+                    <span className="text-xs text-gray-400">({pct}%)</span>
+                  </div>
+                </div>
+                <MiniBar value={val} max={totalApts} color={color} />
               </div>
-            </div>
-            <div className="text-2xl font-bold text-gray-800">
-              {stats?.completionRate || 0}%
-            </div>
-          </div>
-          <p className="text-sm text-gray-500 mt-2">
-            نسبة المواعيد المكتملة إلى إجمالي المواعيد
-          </p>
+            );
+          })}
         </div>
+      </motion.div>
 
-        {/* Average Daily */}
-        <div className="bg-white rounded-xl p-6 shadow">
-          <h3 className="text-lg font-bold text-gray-800 mb-4">
-            المتوسط اليومي
-          </h3>
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <div className="h-4 bg-gray-200 rounded-full overflow-hidden">
+      {/* Monthly breakdown if available */}
+      {s.monthly && s.monthly.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6"
+        >
+          <h2 className="text-lg font-bold text-gray-800 mb-6">
+            المواعيد الشهرية
+          </h2>
+          <div className="flex items-end gap-2 h-32">
+            {s.monthly.map(({ month, count }) => {
+              const maxCount = Math.max(...s.monthly.map((m) => m.count), 1);
+              const pct = (count / maxCount) * 100;
+              return (
                 <div
-                  className="h-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-all duration-500"
-                  style={{
-                    width: `${Math.min(
-                      100,
-                      ((stats?.averageDaily || 0) / 10) * 100
-                    )}%`,
-                  }}
-                ></div>
-              </div>
-            </div>
-            <div className="text-2xl font-bold text-gray-800">
-              {stats?.averageDaily || 0}
-            </div>
+                  key={month}
+                  className="flex-1 flex flex-col items-center gap-1"
+                >
+                  <motion.div
+                    initial={{ height: 0 }}
+                    animate={{ height: `${pct}%` }}
+                    transition={{ duration: 0.6 }}
+                    className="w-full bg-blue-500 rounded-t-md"
+                    style={{ minHeight: count > 0 ? "4px" : 0 }}
+                  />
+                  <span className="text-xs text-gray-400">{month}</span>
+                </div>
+              );
+            })}
           </div>
-          <p className="text-sm text-gray-500 mt-2">
-            متوسط عدد المواعيد يومياً
-          </p>
-        </div>
-      </div>
-
-      {/* Debug Info - Only show if stats are 0 */}
-      {(stats?.weekAppointments === 0 ||
-        stats?.monthAppointments === 0 ||
-        stats?.totalRevenue === 0) && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-          <h4 className="text-yellow-800 font-bold mb-2">ملاحظة:</h4>
-          <p className="text-yellow-700 text-sm">
-            بعض الإحصائيات تظهر صفر. قد يكون بسبب:
-          </p>
-          <ul className="text-yellow-700 text-sm list-disc list-inside mt-1">
-            <li>لا توجد مواعيد في الأسبوع/الشهر الماضي</li>
-            <li>المواعيد القديمة لا تحتوي على تواريخ قابلة للتحليل</li>
-            <li>المواعيد المدفوعة لا تحتوي على مبالغ مسجلة</li>
-            <li>تحقق من سجلات وحدة التحكم لمزيد من التفاصيل</li>
-          </ul>
-          <button
-            onClick={refreshStats}
-            className="mt-3 px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors text-sm"
-          >
-            إعادة المحاولة
-          </button>
-        </div>
+        </motion.div>
       )}
     </div>
   );

@@ -1,136 +1,117 @@
 import React, { useContext } from "react";
-import Login from "./pages/Login";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
-import { AdminContext } from "./context/AdminContext";
-import { Route, Routes, Navigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
+import "react-toastify/dist/ReactToastify.css";
 
-import AdminLayout from "./components/AdminLayout";
-import DoctorLayout from "./components/DoctorLayout";
-import Dashboard from "./pages/Admin/Dashboard";
-import AddService from "./pages/Admin/AddService";
-import ServicesList from "./pages/Admin/ServiceList";
-import AllAppointments from "./pages/Admin/AllAppointment";
-import DoctorToday from "./pages/Doctor/DoctorToday";
-import DoctorStats from "./pages/Doctor/DoctorStats";
+// Contexts
+import { AdminContext } from "./context/AdminContext";
 import { DoctorContext } from "./context/DoctorContext";
-import DoctorCalendar from "./pages/Doctor/DoctorCalender";
-import DoctorAppointments from "./pages/Doctor/DoctorAppointments";
-import EditService from "./pages/Admin/EditService";
+
+// Auth
+import Login from "./pages/auth/Login";
+
+// ── Admin Layout & Pages ──────────────────────────────────────────────────────
+import AdminLayout from "./components/admin/AdminLayout";
+import Dashboard from "./pages/Admin/Dashboard";
+import AllAppointments from "./pages/Admin/AllAppointments";
+import AdminServices from "./pages/Admin/AdminServices";
+import BlockSlots from "./pages/Admin/BlockSlots";
 import AdminCourses from "./pages/Admin/AdminCourses";
-import AdminCourseLessons from "./pages/Admin/AdminCourseLessons";
-import AdminCreateProduct from "./pages/Admin/AdminCreateProduct";
-import AdminEditProduct from "./pages/Admin/AdminEditProducts";
-import AdminCategories from "./pages/Admin/AdminCategories";
-import AdminOrders from "./pages/Admin/AdminOrders";
 import AdminProducts from "./pages/Admin/AdminProducts";
+import AdminUsers from "./pages/Admin/AdminUsers";
+
+// ── Doctor Layout & Pages ─────────────────────────────────────────────────────
+import DoctorLayout from "./components/doctor/DoctorLayout";
+import DoctorCalendar from "./pages/Doctor/DoctorCalendar";
+import DoctorToday from "./pages/Doctor/DoctorToday";
+import DoctorAppointments from "./pages/Doctor/DoctorAppointments";
 import DoctorAppointmentDetails from "./pages/Doctor/DoctorAppointmentDetails";
-import AdminEditService from "./pages/Admin/EditService";
+import DoctorStats from "./pages/Doctor/DoctorStats";
 
 const App = () => {
   const { aToken } = useContext(AdminContext);
   const { dToken } = useContext(DoctorContext);
 
   return (
-    <div className="bg-[#F8F9FD] min-h-screen">
+    <>
       <ToastContainer
         position="top-right"
         autoClose={3000}
         hideProgressBar={false}
         newestOnTop
         closeOnClick
-        rtl={true}
+        rtl
         pauseOnFocusLoss
         draggable
         pauseOnHover
+        theme="colored"
       />
 
       <AnimatePresence mode="wait">
         <Routes>
-          {/* SINGLE LOGIN PAGE FOR BOTH ADMIN AND DOCTOR */}
-          {!aToken && !dToken && <Route path="/" element={<Login />} />}
+          {/* Public login */}
+          <Route
+            path="/"
+            element={
+              aToken ? (
+                <Navigate to="/admin/dashboard" />
+              ) : dToken ? (
+                <Navigate to="/doctor/calendar" />
+              ) : (
+                <Login />
+              )
+            }
+          />
 
-          {/* PROTECTED ADMIN SECTION */}
+          {/* ── Admin routes ─────────────────────────────────────────────── */}
           {aToken && (
             <Route path="/admin" element={<AdminLayout />}>
-              <Route path="dashboard" element={<Dashboard />} />
-              <Route path="add-service" element={<AddService />} />
-              <Route path="services-list" element={<ServicesList />} />
-              <Route path="appointments" element={<AllAppointments />} />
-              <Route path="courses" element={<AdminCourses />} />
-              <Route
-                path="courses/:courseId/lessons"
-                element={<AdminCourseLessons />}
-              />
               <Route index element={<Navigate to="dashboard" />} />
-              <Route
-                path="/admin/edit-service/:serviceId"
-                element={<AdminEditService />}
-              />
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="appointments" element={<AllAppointments />} />
+              <Route path="services" element={<AdminServices />} />
+              <Route path="services-list" element={<AdminServices />} />
+              <Route path="add-service" element={<AdminServices />} />
+              <Route path="block-slots" element={<BlockSlots />} />
+              {/* New sections */}
+              <Route path="courses" element={<AdminCourses />} />
               <Route path="products" element={<AdminProducts />} />
-              <Route path="products/create" element={<AdminCreateProduct />} />
-              <Route
-                path="products/edit/:productId"
-                element={<AdminEditProduct />}
-              />
-
-              {/* E-commerce - Categories */}
-              <Route path="categories" element={<AdminCategories />} />
-
-              {/* E-commerce - Orders */}
-              <Route path="orders" element={<AdminOrders />} />
+              <Route path="users" element={<AdminUsers />} />
             </Route>
           )}
 
-          {/* PROTECTED DOCTOR SECTION */}
+          {/* ── Doctor routes ─────────────────────────────────────────────── */}
           {dToken && (
             <Route path="/doctor" element={<DoctorLayout />}>
+              <Route index element={<Navigate to="calendar" />} />
               <Route path="calendar" element={<DoctorCalendar />} />
               <Route path="today" element={<DoctorToday />} />
               <Route path="appointments" element={<DoctorAppointments />} />
               <Route
-                path="/doctor/appointments/:id"
+                path="appointments/:id"
                 element={<DoctorAppointmentDetails />}
               />
-
               <Route path="stats" element={<DoctorStats />} />
-              <Route index element={<Navigate to="calendar" />} />
             </Route>
           )}
 
-          {/* DEFAULT REDIRECTS */}
-          <Route
-            path="/"
-            element={
-              <Navigate
-                to={
-                  aToken
-                    ? "/admin/dashboard"
-                    : dToken
-                    ? "/doctor/calendar"
-                    : "/"
-                }
-              />
-            }
-          />
-
+          {/* Catch-all */}
           <Route
             path="*"
             element={
-              <Navigate
-                to={
-                  aToken
-                    ? "/admin/dashboard"
-                    : dToken
-                    ? "/doctor/calendar"
-                    : "/"
-                }
-              />
+              aToken ? (
+                <Navigate to="/admin/dashboard" />
+              ) : dToken ? (
+                <Navigate to="/doctor/calendar" />
+              ) : (
+                <Navigate to="/" />
+              )
             }
           />
         </Routes>
       </AnimatePresence>
-    </div>
+    </>
   );
 };
 

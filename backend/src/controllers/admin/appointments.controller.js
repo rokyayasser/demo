@@ -78,7 +78,7 @@ class AdminAppointmentsController extends BaseController {
         res,
         transformedAppointments,
         pagination,
-        "Appointments retrieved successfully"
+        "Appointments retrieved successfully",
       );
     } catch (error) {
       return this.error(res, error.message);
@@ -103,7 +103,7 @@ class AdminAppointmentsController extends BaseController {
         appointmentId,
         status,
         adminEmail,
-        notes
+        notes,
       );
 
       // Send confirmation email if requested
@@ -123,7 +123,7 @@ class AdminAppointmentsController extends BaseController {
             user,
             service,
             true,
-            adminEmail
+            adminEmail,
           );
 
           emailSent = emailResult.success;
@@ -145,7 +145,7 @@ class AdminAppointmentsController extends BaseController {
           emailSent,
           statusText: this.getStatusTextAr(status),
         },
-        `Appointment ${status} successfully`
+        `Appointment ${status} successfully`,
       );
     } catch (error) {
       return this.error(res, error.message);

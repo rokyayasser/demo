@@ -45,7 +45,7 @@ const AdminEditProduct = () => {
     try {
       setLoadingProduct(true);
       const { data } = await axios.get(
-        `${backendUrl}/api/products/${productId}`
+        `${backendUrl}/api/products/${productId}`,
       );
 
       if (data.success && data.product) {
@@ -78,7 +78,7 @@ const AdminEditProduct = () => {
             ([key, value]) => ({
               key,
               value,
-            })
+            }),
           );
           setSpecifications(specsArray);
         }
@@ -131,7 +131,7 @@ const AdminEditProduct = () => {
             token: aToken,
             "Content-Type": "multipart/form-data",
           },
-        }
+        },
       );
 
       if (data.success) {

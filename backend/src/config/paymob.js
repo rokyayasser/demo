@@ -1,3 +1,4 @@
+// src/config/paymob.js  — REPLACE existing file
 const axios = require("axios");
 
 class PaymobService {
@@ -8,7 +9,6 @@ class PaymobService {
       iframeId: process.env.PAYMOB_IFRAME_ID,
       hmacSecret: process.env.PAYMOB_HMAC_SECRET,
     };
-
     this.baseUrl = "https://accept.paymob.com/api";
     this.authToken = null;
     this.tokenExpiry = null;
@@ -19,24 +19,19 @@ class PaymobService {
       if (this.authToken && this.tokenExpiry && Date.now() < this.tokenExpiry) {
         return this.authToken;
       }
-
       console.log("🔑 Getting Paymob auth token...");
-
       const response = await axios.post(`${this.baseUrl}/auth/tokens`, {
         api_key: this.config.apiKey,
       });
-
       this.authToken = response.data.token;
       this.tokenExpiry = Date.now() + 3600 * 1000;
-
       console.log("✅ Paymob auth token obtained");
       return this.authToken;
     } catch (error) {
-      console.error("❌ Paymob Auth Error:", {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-      });
+      console.error(
+        "❌ Paymob Auth Error:",
+        error.response?.data || error.message,
+      );
       throw new Error("فشل في المصادقة مع Paymob");
     }
   }
@@ -44,7 +39,6 @@ class PaymobService {
   async createOrder(authToken, amount, paymentId, items = []) {
     try {
       const uniqueOrderId = `${paymentId}_${Date.now()}`;
-
       console.log("🛒 Creating Paymob order...", {
         amount,
         paymentId,
@@ -62,9 +56,9 @@ class PaymobService {
             ? items
             : [
                 {
-                  name: "Medical Appointment",
+                  name: "Service Payment",
                   amount_cents: amount * 100,
-                  description: "Payment for medical appointment service",
+                  description: "Payment for service",
                   quantity: 1,
                 },
               ],
@@ -73,11 +67,10 @@ class PaymobService {
       console.log("✅ Paymob Order Created:", response.data.id);
       return response.data;
     } catch (error) {
-      console.error("❌ Paymob Order Error:", {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-      });
+      console.error(
+        "❌ Paymob Order Error:",
+        error.response?.data || error.message,
+      );
       throw new Error("فشل في إنشاء طلب Paymob");
     }
   }
@@ -99,10 +92,11 @@ class PaymobService {
           order_id: order.id,
           billing_data: {
             apartment: "NA",
-            email: userInfo.email,
+            email: userInfo.email || "user@example.com",
             floor: "NA",
-            first_name:
-              userInfo.name?.split(" ")[0] || userInfo.name || "Customer",
+            first_name: userInfo.name?.split(" ")[0] || "Customer",
+            last_name:
+              userInfo.name?.split(" ").slice(1).join(" ") || "Customer",
             street: "NA",
             building: "NA",
             phone_number: userInfo.phone || "01000000000",
@@ -110,29 +104,31 @@ class PaymobService {
             postal_code: "NA",
             city: "Cairo",
             country: "EG",
-            last_name:
-              userInfo.name?.split(" ").slice(1).join(" ") ||
-              userInfo.name ||
-              "Customer",
             state: "NA",
           },
           currency: "EGP",
           integration_id: this.config.integrationId,
           lock_order_when_paid: true,
+          // ── Redirect URL: Paymob sends user here after payment ───────────────
+          // Must be set in .env as FRONTEND_URL=http://localhost:5173
+          // Paymob appends: ?success=true&merchant_order_id=...&id=...
+          redirect_url: `${process.env.FRONTEND_URL || process.env.USER_FRONTEND_URL || "http://localhost:5173"}/payment/callback`,
         },
       );
 
-      console.log("✅ Payment key created successfully");
+      console.log("✅ Payment key created");
       return response.data.token;
     } catch (error) {
-      console.error("❌ Paymob Payment Key Error:", {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-      });
+      console.error(
+        "❌ Paymob Payment Key Error:",
+        error.response?.data || error.message,
+      );
       throw new Error("فشل في إنشاء مفتاح الدفع");
     }
   }
+
+  // ─── Main method — called by course.controller.js and payment.service.js ───
+  // Signature: initiatePayment(paymentId, amount, userInfo, items)
   async initiatePayment(paymentId, amount, userInfo, items = []) {
     try {
       console.log("💰 Initiating payment...", {
@@ -150,24 +146,40 @@ class PaymobService {
         amount,
       );
 
-      // ✅ Generate payment URLs
+      // ── Where Paymob sends the user AFTER payment ──────────────────────────
+      // This is the React frontend URL — set in .env as FRONTEND_URL
+      // After payment, Paymob appends: ?success=true&id=...&merchant_order_id=...
+      //
+      // Development:  http://localhost:5173/payment/callback
+      // Production:   https://ahmedelkhateeb.com/payment/callback
+      //
+      // Set this in your .env:
+      //   FRONTEND_URL=http://localhost:5173      ← dev
+      //   FRONTEND_URL=https://ahmedelkhateeb.com ← production
+      const frontendUrl =
+        process.env.FRONTEND_URL ||
+        process.env.USER_FRONTEND_URL ||
+        "http://localhost:5173";
+      const redirectUrl = `${frontendUrl}/payment/callback`;
+
+      // ── The iframe embed URL (shown inside the payment iframe) ─────────────
       const iframeUrl = `https://accept.paymob.com/api/acceptance/iframes/${this.config.iframeId}?payment_token=${paymentKey}`;
 
-      // ✅ CHANGE THIS: Use your own hosted page instead of Paymob's standalone URL
-      const hostedPageUrl = `${process.env.BACKEND_URL || "http://localhost:4000"}/api/v1/payment/page/${paymentKey}`;
+      // ── The full hosted payment page URL (standalone page, no iframe) ──────
+      // This is what we send to the user — they go to this URL, pay, then
+      // Paymob redirects them back to redirectUrl above.
+      const hostedPageUrl = `https://accept.paymob.com/api/acceptance/iframes/${this.config.iframeId}?payment_token=${paymentKey}`;
 
-      console.log("✅ Payment URLs generated:", {
-        hostedPage: hostedPageUrl,
-        iframe: iframeUrl.substring(0, 80) + "...",
-      });
+      console.log("✅ Payment URLs generated:", { redirect: redirectUrl });
 
       return {
         success: true,
         paymentKey,
         orderId: order.id,
         merchantOrderId: order.merchant_order_id,
-        paymentUrl: hostedPageUrl, // ✅ Changed to hosted page
-        iframeUrl: iframeUrl,
+        paymentUrl: hostedPageUrl, // ← frontend opens this URL
+        iframeUrl: iframeUrl, // ← same URL, kept for compatibility
+        redirectUrl, // ← Paymob returns user here after payment
         details: {
           amount,
           currency: "EGP",
@@ -176,15 +188,15 @@ class PaymobService {
         },
       };
     } catch (error) {
-      console.error("❌ Payment Initiation Error:", error);
+      console.error("❌ Payment Initiation Error:", error.message);
       throw error;
     }
   }
 
+  // ─── HMAC verification for Paymob callbacks ───────────────────────────────
   verifyCallback(data, receivedHmac) {
     try {
       const crypto = require("crypto");
-
       const keys = {
         amount_cents: data.amount_cents,
         created_at: data.created_at,
@@ -208,45 +220,37 @@ class PaymobService {
         success: data.success,
       };
 
-      const concatenatedString = Object.keys(keys)
+      const concatenated = Object.keys(keys)
         .sort()
-        .map((key) => keys[key])
+        .map((k) => keys[k])
         .join("");
-
-      const calculatedHmac = crypto
+      const calculated = crypto
         .createHmac("sha512", this.config.hmacSecret)
-        .update(concatenatedString)
+        .update(concatenated)
         .digest("hex");
 
-      console.log("🔒 HMAC Verification:", {
-        calculated: calculatedHmac,
-        received: receivedHmac,
-        match: calculatedHmac === receivedHmac,
-      });
-
-      return calculatedHmac === receivedHmac;
+      return calculated === receivedHmac;
     } catch (error) {
       console.error("❌ HMAC Verification Error:", error);
       return false;
     }
   }
 
+  // Alias — some code calls verifyHmac, some calls verifyCallback
+  verifyHmac(data, receivedHmac) {
+    return this.verifyCallback(data, receivedHmac);
+  }
+
   async getOrderStatus(orderId) {
     try {
       const authToken = await this.getAuthToken();
-
       const response = await axios.get(
         `${this.baseUrl}/ecommerce/orders/${orderId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-          },
-        },
+        { headers: { Authorization: `Bearer ${authToken}` } },
       );
-
       return response.data;
     } catch (error) {
-      console.error("❌ Get Order Status Error:", error);
+      console.error("❌ Get Order Status Error:", error.message);
       throw error;
     }
   }
