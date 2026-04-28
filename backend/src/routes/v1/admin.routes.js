@@ -23,7 +23,7 @@ try {
 // BlockedSlot model — loaded at module level so all route handlers can use it
 let BlockedSlotModel;
 try {
-  BlockedSlotModel = require("../models/Blockedslot");
+  BlockedSlotModel = require("../../models/Blockedslot");
 } catch (e) {
   console.warn(
     "admin.routes: BlockedSlot not found at require time:",
