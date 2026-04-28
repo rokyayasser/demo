@@ -184,7 +184,7 @@ router.post("/confirm-payment", async (req, res) => {
         .status(400)
         .json({ success: false, message: "merchantOrderId مطلوب" });
 
-    const CourseEnrollment = require("../../models/CourseEnrollment");
+    const CourseEnrollment = require("../../models/Courseenrollment");
     const Course = require("../../models/Course");
 
     // merchantOrderId format from Paymob redirect:
