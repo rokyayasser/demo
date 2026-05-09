@@ -6,6 +6,8 @@ import { motion } from "framer-motion";
 import { Search, Package, Star, ShoppingCart } from "lucide-react";
 import { ProductContext } from "../../context/ProductContext";
 import AnimatedText from "../../components/common/AnimatedContent";
+import ComingSoon from "../../components/common/CommingSoon";
+import { FEATURES } from "../../config/features";
 
 // ─── Single product card ──────────────────────────────────────────────────────
 // Matches the style of the home ProductsSection carousel cards.
@@ -170,6 +172,20 @@ const ProductsPage = () => {
   } = useContext(ProductContext);
   const [searchTerm, setSearchTerm] = useState("");
 
+  useEffect(() => {
+    getAllProducts();
+  }, []);
+
+  // ── Coming Soon gate — flip PRODUCTS_COMING_SOON in src/config/features.js ─
+  if (FEATURES.PRODUCTS_COMING_SOON) {
+    return (
+      <ComingSoon
+        title="المنتجات"
+        subtitle="متجر د. أحمد الخطيب قادم قريباً — ترقبوا!"
+      />
+    );
+  }
+
   // Always guarantee an array regardless of context shape
   const products = Array.isArray(rawProducts)
     ? rawProducts
@@ -178,10 +194,6 @@ const ProductsPage = () => {
       : Array.isArray(rawProducts?.data)
         ? rawProducts.data
         : [];
-
-  useEffect(() => {
-    getAllProducts();
-  }, []);
 
   const filteredData = searchTerm
     ? products.filter(

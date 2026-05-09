@@ -4,7 +4,7 @@ import { FiClock, FiCalendar, FiMonitor } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { CourseContext } from "../../context/CourseContext";
 import Carousel from "../common/Carousel";
-import AnimatedText from "../common/AnimatedContent";
+import { FEATURES } from "../../config/features";
 
 const CoursesSection = () => {
   const { courses, getAllCourses, isLoading } = useContext(CourseContext);
@@ -13,6 +13,9 @@ const CoursesSection = () => {
   useEffect(() => {
     if (courses.length === 0) getAllCourses();
   }, []);
+
+  // ── Hide section entirely when coming soon ────────────────────────────────
+  if (FEATURES.COURSES_COMING_SOON) return null;
 
   /** Map a Course document → Carousel card shape */
   const carouselData = courses

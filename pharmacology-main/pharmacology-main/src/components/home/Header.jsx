@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { FaInstagram, FaFacebookF, FaYoutube, FaTiktok } from "react-icons/fa";
 import { FaCalendarDays, FaChevronRight, FaChevronLeft } from "react-icons/fa6";
-import img1 from '../../assets/1.webp';
-import img2 from "../../assets/2.webp";
-import img3 from "../../assets/3.webp";
-import img4 from "../../assets/4.webp";
-import img5 from "../../assets/5.webp";
-import img6 from "../../assets/6.webp";
-import img7 from "../../assets/7.webp";
-import img8 from "../../assets/8.webp";
+import img1 from "../../assets/1.webp";
+import img2 from "../../assets/3.webp";
+import img3 from "../../assets/5w.jpg";
+import img4 from "../../assets/6w.jpg";
+import img5 from "../../assets/8w.jpg";
+import img6 from "../../assets/9w.jpg";
+import imgl1 from "../../assets/1.jpg";
+import imgl2 from "../../assets/3.jpg";
+import imgl3 from "../../assets/5.jpg";
+import imgl4 from "../../assets/6.jpg";
+import imgl5 from "../../assets/8.jpg";
+import imgl6 from "../../assets/9.jpg";
 
 import Button from "../common/Button";
 
@@ -19,28 +23,42 @@ const initialData = [
     // Desktop Media (e.g., Video)
     desktop: { url: img1, type: "img" },
     // Mobile Media (e.g., Image specifically for phone)
-    mobile: { url: img5, type: "img" },
+    mobile: { url: imgl1, type: "img" },
     title: "ما بين الدواء والغذاء قصة.. سأحكيها لك.",
     des: "استشارات متخصصة ودورات معتمدة في التغذية السريرية وعلم الأدوية من نخبة الخبراء في المجال.",
   },
   {
     id: 2,
     desktop: { url: img2, type: "image" },
-    mobile: { url: img6, type: "image" }, 
-    title: "صحتك تبدأ من غذائك",
+    mobile: { url: imgl2, type: "image" },
+    title: "صحتك من غذائك",
     des: "برامج غذائية مصممة خصيصاً لتناسب احتياجاتك الصحية وأهدافك الشخصية بخطوات علمية مدروسة.",
   },
   {
     id: 3,
     desktop: { url: img3, type: "image" },
-    mobile: { url: img7, type: "image" },
+    mobile: { url: imgl3, type: "image" },
     title: "الرعاية المتكاملة لحياتك",
     des: "نقدم لك استشارات شاملة تجمع بين الطب الحديث وأسلوب الحياة الصحي لضمان أفضل النتائج.",
   },
   {
     id: 4,
     desktop: { url: img4, type: "image" },
-    mobile: { url: img8, type: "image" },
+    mobile: { url: imgl4, type: "image" },
+    title: "خطتك الدوائية بأمان",
+    des: "تقييم شامل لأدويتك ومكملاتك الغذائية لتجنب التفاعلات الضارة وتحقيق أقصى استفادة.",
+  },
+  {
+    id: 5,
+    desktop: { url: img5, type: "image" },
+    mobile: { url: imgl5, type: "image" },
+    title: "خطتك الدوائية بأمان",
+    des: "تقييم شامل لأدويتك ومكملاتك الغذائية لتجنب التفاعلات الضارة وتحقيق أقصى استفادة.",
+  },
+  {
+    id: 6,
+    desktop: { url: img6, type: "image" },
+    mobile: { url: imgl6, type: "image" },
     title: "خطتك الدوائية بأمان",
     des: "تقييم شامل لأدويتك ومكملاتك الغذائية لتجنب التفاعلات الضارة وتحقيق أقصى استفادة.",
   },
@@ -121,13 +139,44 @@ const Header = () => {
   };
 
   return (
-    <header className="relative w-full h-screen overflow-hidden bg-gray-900 text-white" dir="rtl">
+    <header
+      className="relative w-full h-screen overflow-hidden bg-gray-900 text-white"
+      dir="rtl"
+    >
       {/* Social Media Sidebar */}
       <div className="absolute right-8 top-1/2 -translate-y-1/2 z-50 flex flex-col items-center gap-6 border-r border-gray-400/50 pr-6 hidden md:flex">
-        <a href="https://www.facebook.com/DrAhmedElkhaateeb" target="_blank" rel="noreferrer" className="text-xl hover:text-blue-400 transition-colors"><FaFacebookF /></a>
-        <a href="https://www.instagram.com/drahmedelkhateeb" target="_blank" rel="noreferrer" className="text-xl hover:text-pink-400 transition-colors"><FaInstagram /></a>
-        <a href="https://www.youtube.com/@Dr_Ahmed_elkhateeb" target="_blank" rel="noreferrer" className="text-xl hover:text-red-600 transition-colors"><FaYoutube /></a>
-        <a href="https://tiktok.com/@drahmedelkhateeb" target="_blank" rel="noreferrer" className="text-xl hover:text-black transition-colors"><FaTiktok /></a>
+        <a
+          href="https://www.facebook.com/DrAhmedElkhaateeb"
+          target="_blank"
+          rel="noreferrer"
+          className="text-xl hover:text-blue-400 transition-colors"
+        >
+          <FaFacebookF />
+        </a>
+        <a
+          href="https://www.instagram.com/drahmedelkhateeb"
+          target="_blank"
+          rel="noreferrer"
+          className="text-xl hover:text-pink-400 transition-colors"
+        >
+          <FaInstagram />
+        </a>
+        <a
+          href="https://www.youtube.com/@Dr_Ahmed_elkhateeb"
+          target="_blank"
+          rel="noreferrer"
+          className="text-xl hover:text-red-600 transition-colors"
+        >
+          <FaYoutube />
+        </a>
+        <a
+          href="https://tiktok.com/@drahmedelkhateeb"
+          target="_blank"
+          rel="noreferrer"
+          className="text-xl hover:text-black transition-colors"
+        >
+          <FaTiktok />
+        </a>
       </div>
 
       {/* Carousel Container */}
@@ -158,7 +207,7 @@ const Header = () => {
                 {item.des}
               </p>
               <div className="pointer-events-auto w-fit">
-                <Button to={'/consultations'} className="cursor-pointer">
+                <Button to={"/consultations"} className="cursor-pointer">
                   ابدأ رحلتك الصحيه الان
                 </Button>
               </div>
@@ -169,7 +218,10 @@ const Header = () => {
 
       {/* Controls */}
       <div className="absolute bottom-2 md:bottom-10 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 bg-white/20 backdrop-blur-md px-4 py-2 rounded-2xl">
-        <Button onClick={handlePrev} className="w-10 h-10 flex items-center justify-center bg-white text-black rounded-full hover:scale-110 transition-transform">
+        <Button
+          onClick={handlePrev}
+          className="w-10 h-10 flex items-center justify-center bg-white text-black rounded-full hover:scale-110 transition-transform"
+        >
           <FaChevronRight />
         </Button>
         <div className="flex gap-2">
@@ -186,13 +238,18 @@ const Header = () => {
             );
           })}
         </div>
-        <Button onClick={handleNext} className="w-10 h-10 flex items-center justify-center bg-white text-black rounded-full hover:scale-110 transition-transform">
+        <Button
+          onClick={handleNext}
+          className="w-10 h-10 flex items-center justify-center bg-white text-black rounded-full hover:scale-110 transition-transform"
+        >
           <FaChevronLeft />
         </Button>
       </div>
 
       {/* CSS for Carousel Logic */}
-      <style dangerouslySetInnerHTML={{__html: `
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
         .carousel-item {
           position: absolute;
           width: 260px;
@@ -238,7 +295,9 @@ const Header = () => {
         .carousel-item:nth-child(2) .carousel-content h1 { opacity: 0; animation: fadeInRtl 0.6s ease-out 0.4s 1 forwards; }
         .carousel-item:nth-child(2) .carousel-content p { opacity: 0; animation: fadeInRtl 0.6s ease-out 0.6s 1 forwards; }
         .carousel-item:nth-child(2) .carousel-content .pointer-events-auto { opacity: 0; animation: fadeInRtl 0.6s ease-out 0.8s 1 forwards; }
-      `}} />
+      `,
+        }}
+      />
     </header>
   );
 };

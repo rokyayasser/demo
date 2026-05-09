@@ -20,182 +20,12 @@ import {
 } from "lucide-react";
 import { CourseContext } from "../../context/CourseContext";
 import api from "../../api/axios.config";
+import AnimatedText from "../../components/common/AnimatedContent";
+import ComingSoon from "../../components/common/CommingSoon";
+
+import { FEATURES } from "../../config/features";
 
 // ─── Enrollment modal — collects name/email/phone ─────────────────────────────
-const EnrollModal = ({ course, onClose }) => {
-  const [form, setForm] = useState({ name: "", email: "", phone: "" });
-  const [loading, setLoading] = useState(false);
-  const set = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }));
-  const isFree = !course.price || Number(course.price) === 0;
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.name.trim() || !form.email.trim() || !form.phone.trim()) {
-      toast.error("يرجى إدخال جميع البيانات المطلوبة");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const { data } = await api.post("/api/v1/courses/enroll-guest", {
-        courseId: course._id,
-        customerInfo: form,
-      });
-
-      if (!data.success) {
-        toast.error(data.message || "حدث خطأ");
-        return;
-      }
-
-      // Free course — enrolled immediately
-      if (data.data?.free) {
-        toast.success(`🎉 تم التسجيل! سيصلك رابط الكورس على ${form.email}`);
-        onClose();
-        return;
-      }
-
-      // Paid — redirect to Paymob
-      const paymentUrl = data.data?.paymentUrl || data.data?.iframeUrl;
-      if (paymentUrl) {
-        toast.info("جارٍ تحويلك لصفحة الدفع...");
-        sessionStorage.setItem(
-          "pending_enrollment",
-          JSON.stringify({
-            courseId: course._id,
-            email: form.email,
-            name: form.name,
-          }),
-        );
-        window.location.href = paymentUrl;
-        return;
-      }
-
-      toast.success("تم استقبال طلبك! سنتواصل معك قريباً");
-      onClose();
-    } catch (err) {
-      toast.error(
-        err.response?.data?.message || "حدث خطأ، يرجى المحاولة لاحقاً",
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
-      />
-
-      <motion.div
-        initial={{ opacity: 0, scale: 0.93, y: 24 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.93 }}
-        transition={{ type: "spring", duration: 0.4 }}
-        className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="bg-gradient-to-r from-[#2d1b5a] to-[#1a0f3a] p-6 text-white">
-          <button
-            onClick={onClose}
-            className="absolute top-4 left-4 p-1.5 hover:bg-white/20 rounded-lg transition"
-          >
-            <X className="w-5 h-5" />
-          </button>
-          <h2 className="text-xl font-bold mb-1">التسجيل في الكورس</h2>
-          <p className="text-white/70 text-sm line-clamp-1">
-            {course.title_ar || course.title}
-          </p>
-          <div className="mt-3 inline-block bg-white/20 px-3 py-1 rounded-full text-sm font-bold">
-            {isFree
-              ? "🎁 مجاني"
-              : `💳 ${Number(course.price).toLocaleString()} جنيه`}
-          </div>
-        </div>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4" dir="rtl">
-          <p className="text-sm text-gray-500 mb-2">
-            {isFree
-              ? "أدخل بياناتك وسيصلك رابط الكورس فوراً على بريدك الإلكتروني"
-              : "أدخل بياناتك ثم أكمل الدفع — سيصلك رابط الكورس على بريدك بعد الدفع"}
-          </p>
-
-          <div className="relative">
-            <User className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <input
-              value={form.name}
-              onChange={set("name")}
-              required
-              placeholder="الاسم الكامل *"
-              className="w-full pr-10 pl-4 py-3 border border-gray-200 rounded-xl text-sm
-                focus:outline-none focus:ring-2 focus:ring-[#9b61db]/40"
-            />
-          </div>
-
-          <div className="relative">
-            <Mail className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <input
-              value={form.email}
-              onChange={set("email")}
-              required
-              type="email"
-              placeholder="البريد الإلكتروني * (سيصلك الرابط هنا)"
-              className="w-full pr-10 pl-4 py-3 border border-gray-200 rounded-xl text-sm
-                focus:outline-none focus:ring-2 focus:ring-[#9b61db]/40"
-            />
-          </div>
-
-          <div className="relative">
-            <Phone className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <input
-              value={form.phone}
-              onChange={set("phone")}
-              required
-              placeholder="رقم الهاتف *"
-              className="w-full pr-10 pl-4 py-3 border border-gray-200 rounded-xl text-sm
-                focus:outline-none focus:ring-2 focus:ring-[#9b61db]/40"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className={`w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2
-              transition-all disabled:opacity-60
-              ${
-                isFree
-                  ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:shadow-lg"
-                  : "bg-gradient-to-r from-[#6d28d9] to-[#9b61db] hover:shadow-lg hover:shadow-[#9b61db]/30"
-              }`}
-          >
-            {loading ? (
-              <>
-                <Loader className="w-5 h-5 animate-spin" /> جارٍ المعالجة...
-              </>
-            ) : isFree ? (
-              <>
-                <BookOpen className="w-5 h-5" /> سجّل مجاناً
-              </>
-            ) : (
-              <>
-                <CreditCard className="w-5 h-5" /> ادفع وسجّل —{" "}
-                {Number(course.price).toLocaleString()} جنيه
-              </>
-            )}
-          </button>
-        </form>
-      </motion.div>
-    </div>
-  );
-};
-
-// ─── Courses page ─────────────────────────────────────────────────────────────
 const Courses = () => {
   const navigate = useNavigate();
   const { courses, getAllCourses, isLoading } = useContext(CourseContext);
@@ -205,6 +35,16 @@ const Courses = () => {
   useEffect(() => {
     if (courses.length === 0) getAllCourses();
   }, []);
+
+  // ── Coming Soon gate — flip COURSES_COMING_SOON in src/config/features.js ──
+  if (FEATURES.COURSES_COMING_SOON) {
+    return (
+      <ComingSoon
+        title="الكورسات"
+        subtitle="كورسات د. أحمد الخطيب قادمة قريباً — ترقبوا!"
+      />
+    );
+  }
 
   const rawCourses = Array.isArray(courses)
     ? courses

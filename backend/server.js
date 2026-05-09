@@ -111,6 +111,7 @@ loadRoute("./src/routes/v1/appointment.routes", "/api/v1/appointments");
 loadRoute("./src/routes/v1/payment.routes", "/api/v1/payment");
 loadRoute("./src/routes/v1/courses.routes", "/api/v1/courses");
 loadRoute("./src/routes/v1/products.routes", "/api/v1/products");
+loadRoute("./src/routes/v1/youtube.routes", "/api/v1/youtube");
 
 // Static files
 app.use("/public", express.static(path.join(__dirname, "public")));

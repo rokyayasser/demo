@@ -8,6 +8,7 @@ import { ProductContext } from "../../context/ProductContext";
 import AnimatedText from "../../components/common/AnimatedContent";
 import Card from "../../components/common/Card";
 import { FiPackage, FiStar } from "react-icons/fi";
+import { FEATURES } from "../../config/features";
 
 const Products = () => {
   const navigate = useNavigate();
@@ -17,6 +18,9 @@ const Products = () => {
     isLoading,
   } = useContext(ProductContext);
   const [search, setSearch] = useState("");
+
+  // ── Hide section entirely when coming soon ────────────────────────────────
+  if (FEATURES.PRODUCTS_COMING_SOON) return null;
 
   // Guard: always work with an array even if context returns unexpected shape
   const products = Array.isArray(rawProducts)
