@@ -72,12 +72,7 @@ const menuSections = [
         text: "المنتجات",
         color: "from-amber-500 to-yellow-600",
       },
-      {
-        to: "/admin/blogs",
-        icon: FileText,
-        text: "المقالات",
-        color: "from-teal-500 to-cyan-600",
-      },
+      
     ],
   },
 ];
