@@ -1,12 +1,19 @@
-// src/config/paymob.js  — REPLACE existing file
+// src/config/paymob.js
+"use strict";
 const axios = require("axios");
 
 class PaymobService {
   constructor() {
     this.config = {
       apiKey: process.env.PAYMOB_API_KEY,
+      // ── EGP integration (existing) ───────────────────────────────────────
       integrationId: process.env.PAYMOB_INTEGRATION_ID,
       iframeId: process.env.PAYMOB_IFRAME_ID,
+      // ── USD integration (new — set these in Render env vars) ────────────
+      // Create a new integration in Paymob dashboard with currency = USD
+      // then set these two env vars
+      usdIntegrationId: process.env.PAYMOB_USD_INTEGRATION_ID,
+      usdIframeId: process.env.PAYMOB_USD_IFRAME_ID,
       hmacSecret: process.env.PAYMOB_HMAC_SECRET,
     };
     this.baseUrl = "https://accept.paymob.com/api";
@@ -36,11 +43,19 @@ class PaymobService {
     }
   }
 
-  async createOrder(authToken, amount, paymentId, items = []) {
+  // ── Create order — currency can be "EGP" or "USD" ──────────────────────────
+  async createOrder(
+    authToken,
+    amount,
+    paymentId,
+    currency = "EGP",
+    items = [],
+  ) {
     try {
       const uniqueOrderId = `${paymentId}_${Date.now()}`;
       console.log("🛒 Creating Paymob order...", {
         amount,
+        currency,
         paymentId,
         orderId: uniqueOrderId,
       });
@@ -48,8 +63,8 @@ class PaymobService {
       const response = await axios.post(`${this.baseUrl}/ecommerce/orders`, {
         auth_token: authToken,
         delivery_needed: "false",
-        amount_cents: amount * 100,
-        currency: "EGP",
+        amount_cents: Math.round(amount * 100), // works for both EGP and USD cents
+        currency, // "EGP" or "USD"
         merchant_order_id: uniqueOrderId,
         items:
           items.length > 0
@@ -57,14 +72,19 @@ class PaymobService {
             : [
                 {
                   name: "Service Payment",
-                  amount_cents: amount * 100,
-                  description: "Payment for service",
+                  amount_cents: Math.round(amount * 100),
+                  description: `Payment in ${currency}`,
                   quantity: 1,
                 },
               ],
       });
 
-      console.log("✅ Paymob Order Created:", response.data.id);
+      console.log(
+        "✅ Paymob Order Created:",
+        response.data.id,
+        "Currency:",
+        currency,
+      );
       return response.data;
     } catch (error) {
       console.error(
@@ -75,11 +95,45 @@ class PaymobService {
     }
   }
 
-  async getPaymentKey(authToken, order, userInfo, amount) {
+  // ── Get payment key — picks correct integration ID based on currency ────────
+  async getPaymentKey(authToken, order, userInfo, amount, currency = "EGP") {
     try {
+      // Use USD integration only if PAYMOB_USD_INTEGRATION_ID is configured.
+      // If not set, fall back to EGP integration and send amount in EGP
+      // (Paymob will reject USD on an EGP integration).
+      const hasUsdIntegration = !!(
+        this.config.usdIntegrationId && this.config.usdIframeId
+      );
+
+      const integrationId =
+        currency === "USD" && hasUsdIntegration
+          ? this.config.usdIntegrationId
+          : this.config.integrationId;
+
+      const iframeId =
+        currency === "USD" && hasUsdIntegration
+          ? this.config.usdIframeId
+          : this.config.iframeId;
+
+      // If USD requested but no USD integration → charge in EGP
+      // The amount passed in is already in the correct currency from the controller
+      const effectiveCurrency =
+        currency === "USD" && !hasUsdIntegration ? "EGP" : currency;
+
+      if (currency === "USD" && !hasUsdIntegration) {
+        console.warn(
+          "⚠️  USD payment requested but PAYMOB_USD_INTEGRATION_ID not set. Falling back to EGP.",
+        );
+        console.warn(
+          "   Set PAYMOB_USD_INTEGRATION_ID and PAYMOB_USD_IFRAME_ID in your .env to enable USD payments.",
+        );
+      }
+
       console.log("🔐 Creating payment key...", {
         orderId: order.id,
         amount,
+        currency,
+        integrationId,
         userEmail: userInfo.email,
       });
 
@@ -87,7 +141,7 @@ class PaymobService {
         `${this.baseUrl}/acceptance/payment_keys`,
         {
           auth_token: authToken,
-          amount_cents: amount * 100,
+          amount_cents: Math.round(amount * 100),
           expiration: 3600,
           order_id: order.id,
           billing_data: {
@@ -106,18 +160,19 @@ class PaymobService {
             country: "EG",
             state: "NA",
           },
-          currency: "EGP",
-          integration_id: this.config.integrationId,
+          currency: effectiveCurrency, // use EGP fallback if no USD integration
+          integration_id: integrationId,
           lock_order_when_paid: true,
-          // ── Redirect URL: Paymob sends user here after payment ───────────────
-          // Must be set in .env as FRONTEND_URL=http://localhost:5173
-          // Paymob appends: ?success=true&merchant_order_id=...&id=...
-          redirect_url: `${process.env.FRONTEND_URL || process.env.USER_FRONTEND_URL || "http://localhost:5173"}/payment/callback`,
+          redirect_url: `${
+            process.env.FRONTEND_URL ||
+            process.env.USER_FRONTEND_URL ||
+            "http://localhost:5173"
+          }/payment/callback`,
         },
       );
 
-      console.log("✅ Payment key created");
-      return response.data.token;
+      console.log("✅ Payment key created for", currency);
+      return { token: response.data.token, iframeId };
     } catch (error) {
       console.error(
         "❌ Paymob Payment Key Error:",
@@ -127,62 +182,70 @@ class PaymobService {
     }
   }
 
-  // ─── Main method — called by course.controller.js and payment.service.js ───
-  // Signature: initiatePayment(paymentId, amount, userInfo, items)
-  async initiatePayment(paymentId, amount, userInfo, items = []) {
+  // ─── Main method ────────────────────────────────────────────────────────────
+  // currency: "EGP" | "USD"
+  // amount:   amount in the specified currency (EGP or USD)
+  async initiatePayment(
+    paymentId,
+    amount,
+    userInfo,
+    items = [],
+    currency = "EGP",
+  ) {
     try {
       console.log("💰 Initiating payment...", {
         paymentId,
         amount,
+        currency,
         userEmail: userInfo.email,
       });
 
       const authToken = await this.getAuthToken();
-      const order = await this.createOrder(authToken, amount, paymentId, items);
-      const paymentKey = await this.getPaymentKey(
+      // Check if USD integration is configured — if not, fall back to EGP
+      const hasUsdIntegration = !!(
+        this.config.usdIntegrationId && this.config.usdIframeId
+      );
+      const effectiveCurrency =
+        currency === "USD" && !hasUsdIntegration ? "EGP" : currency;
+
+      const order = await this.createOrder(
+        authToken,
+        amount,
+        paymentId,
+        effectiveCurrency,
+        items,
+      );
+      const { token: paymentKey, iframeId } = await this.getPaymentKey(
         authToken,
         order,
         userInfo,
         amount,
+        effectiveCurrency,
       );
 
-      // ── Where Paymob sends the user AFTER payment ──────────────────────────
-      // This is the React frontend URL — set in .env as FRONTEND_URL
-      // After payment, Paymob appends: ?success=true&id=...&merchant_order_id=...
-      //
-      // Development:  http://localhost:5173/payment/callback
-      // Production:   https://ahmedelkhateeb.com/payment/callback
-      //
-      // Set this in your .env:
-      //   FRONTEND_URL=http://localhost:5173      ← dev
-      //   FRONTEND_URL=https://ahmedelkhateeb.com ← production
       const frontendUrl =
         process.env.FRONTEND_URL ||
         process.env.USER_FRONTEND_URL ||
         "http://localhost:5173";
       const redirectUrl = `${frontendUrl}/payment/callback`;
+      const paymentUrl = `https://accept.paymob.com/api/acceptance/iframes/${iframeId}?payment_token=${paymentKey}`;
 
-      // ── The iframe embed URL (shown inside the payment iframe) ─────────────
-      const iframeUrl = `https://accept.paymob.com/api/acceptance/iframes/${this.config.iframeId}?payment_token=${paymentKey}`;
-
-      // ── The full hosted payment page URL (standalone page, no iframe) ──────
-      // This is what we send to the user — they go to this URL, pay, then
-      // Paymob redirects them back to redirectUrl above.
-      const hostedPageUrl = `https://accept.paymob.com/api/acceptance/iframes/${this.config.iframeId}?payment_token=${paymentKey}`;
-
-      console.log("✅ Payment URLs generated:", { redirect: redirectUrl });
+      console.log("✅ Payment URLs generated:", {
+        redirect: redirectUrl,
+        currency,
+      });
 
       return {
         success: true,
         paymentKey,
         orderId: order.id,
         merchantOrderId: order.merchant_order_id,
-        paymentUrl: hostedPageUrl, // ← frontend opens this URL
-        iframeUrl: iframeUrl, // ← same URL, kept for compatibility
-        redirectUrl, // ← Paymob returns user here after payment
+        paymentUrl,
+        iframeUrl: paymentUrl,
+        redirectUrl,
         details: {
           amount,
-          currency: "EGP",
+          currency,
           paymentId,
           createdAt: new Date().toISOString(),
         },
@@ -193,7 +256,7 @@ class PaymobService {
     }
   }
 
-  // ─── HMAC verification for Paymob callbacks ───────────────────────────────
+  // ─── HMAC verification ─────────────────────────────────────────────────────
   verifyCallback(data, receivedHmac) {
     try {
       const crypto = require("crypto");
@@ -219,16 +282,14 @@ class PaymobService {
         source_data_type: data.source_data_type,
         success: data.success,
       };
-
       const concatenated = Object.keys(keys)
         .sort()
         .map((k) => keys[k])
         .join("");
-      const calculated = crypto
+      const calculated = require("crypto")
         .createHmac("sha512", this.config.hmacSecret)
         .update(concatenated)
         .digest("hex");
-
       return calculated === receivedHmac;
     } catch (error) {
       console.error("❌ HMAC Verification Error:", error);
@@ -236,7 +297,6 @@ class PaymobService {
     }
   }
 
-  // Alias — some code calls verifyHmac, some calls verifyCallback
   verifyHmac(data, receivedHmac) {
     return this.verifyCallback(data, receivedHmac);
   }

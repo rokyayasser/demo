@@ -1,5 +1,12 @@
 import React from "react";
-import { FaYoutube, FaFacebookF, FaInstagram, FaTiktok, FaLinkedinIn, FaXTwitter} from "react-icons/fa6";
+import {
+  FaYoutube,
+  FaFacebookF,
+  FaInstagram,
+  FaTiktok,
+  FaLinkedinIn,
+  FaXTwitter,
+} from "react-icons/fa6";
 
 const SocialSection = () => {
   const socialData = [
@@ -9,7 +16,7 @@ const SocialSection = () => {
       icon: <FaYoutube className="text-2xl text-white" />,
       iconBg: "bg-red-600",
       handle: "Pharmacology",
-      followers: "3.78 M",
+      followers: "4.2 M",
       link: "https://www.youtube.com/@Dr_Ahmed_elkhateeb",
     },
     {
@@ -18,16 +25,16 @@ const SocialSection = () => {
       icon: <FaFacebookF className="text-2xl text-white" />,
       iconBg: "bg-blue-600",
       handle: "AhmedElkhaateeb",
-      followers: "3.1 M",
+      followers: "4 M",
       link: "https://facebook.com/AhmedElkhaateeb",
     },
-     {
+    {
       id: 3,
       platform: "تيك توك",
       icon: <FaTiktok className="text-2xl text-white" />,
       iconBg: "bg-black",
       handle: "drahmedelkhateeb",
-      followers: "375.5 K",
+      followers: "500 K",
       link: "https://tiktok.com/@drahmedelkhateeb",
     },
     {
@@ -36,10 +43,9 @@ const SocialSection = () => {
       icon: <FaInstagram className="text-2xl text-white" />,
       iconBg: "bg-pink-600",
       handle: "drahmedelkhateebb",
-      followers: "330 K",
+      followers: "520 K",
       link: "https://www.instagram.com/drahmedelkhateeb",
     },
-   
 
     {
       id: 5,
@@ -47,7 +53,7 @@ const SocialSection = () => {
       icon: <FaXTwitter className="text-2xl text-white" />,
       iconBg: "bg-black",
       handle: "PharmaDrAhmed",
-      followers: "1 K",
+      followers: "5 K",
       link: "https://x.com/PharmaDrAhmed",
     },
   ];
@@ -55,19 +61,16 @@ const SocialSection = () => {
   return (
     <section dir="rtl" className="pb-10 px-6 md:px-20 font-sans">
       <div className="max-w-7xl mx-auto">
-
         {/* Header */}
         <div className="text-right mb-12">
           <h2 className="text-3xl md:text-4xl font-bold  py-4 mb-3">
             تابعني على منصاتي
           </h2>
-          <p className=" text-lg">
-            محتوي صحي يومي لملايين المتابعين
-          </p>
+          <p className=" text-lg">محتوي صحي يومي لملايين المتابعين</p>
         </div>
 
         {/* Cards */}
-        <div  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
           {socialData.map((item) => (
             <a
               key={item.id}
@@ -119,7 +122,9 @@ const SocialSection = () => {
         .social-button {
           animation: sway 2s infinite alternate;
           perspective: 500px;
-          transition: transform 0.5s, box-shadow 0.5s;
+          transition:
+            transform 0.5s,
+            box-shadow 0.5s;
           box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
         }
 

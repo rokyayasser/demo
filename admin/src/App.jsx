@@ -28,6 +28,8 @@ import DoctorToday from "./pages/Doctor/DoctorToday";
 import DoctorAppointments from "./pages/Doctor/DoctorAppointments";
 import DoctorAppointmentDetails from "./pages/Doctor/DoctorAppointmentDetails";
 import DoctorStats from "./pages/Doctor/DoctorStats";
+import AdminBlogs from "./pages/Admin/AdminBlogs";
+// inside admin routes:
 
 const App = () => {
   const { aToken } = useContext(AdminContext);
@@ -78,6 +80,7 @@ const App = () => {
               <Route path="courses" element={<AdminCourses />} />
               <Route path="products" element={<AdminProducts />} />
               <Route path="users" element={<AdminUsers />} />
+              <Route path="blogs" element={<AdminBlogs />} />
             </Route>
           )}
 

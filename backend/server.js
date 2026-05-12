@@ -74,23 +74,26 @@ app.get("/", (req, res) => {
 });
 
 // ─── Pre-register models that other modules depend on ────────────────────────
-// Must be required BEFORE routes so mongoose.models.X is populated
-try {
-  require("./src/models/Blockedslot");
-} catch (e) {
-  // ← capital S
-  console.warn("BlockedSlot model:", e.message);
-}
-try {
-  require("./src/models/Courseenrollment");
-} catch (e) {
-  console.warn("CourseEnrollment model:", e.message);
-}
-try {
-  require("./src/models/Course");
-} catch (e) {
-  console.warn("Course model:", e.message);
-}
+// Must be required BEFORE routes so mongoose.models.X is populated.
+// Mongoose throws "Schema hasn't been registered for model X" when a .populate()
+// references a model that hasn't been required yet — pre-registering all models
+// here at startup prevents that error regardless of route load order.
+const preRegister = [
+  "./src/models/BlockedSlot", // capital S — Linux is case-sensitive
+  "./src/models/CourseEnrollment",
+  "./src/models/Course",
+  "./src/models/MedicalService", // needed by appointment populate("serviceId")
+  "./src/models/Appointment", // needed by doctor/admin routes
+  "./src/models/User",
+  "./src/models/Product",
+];
+preRegister.forEach((p) => {
+  try {
+    require(p);
+  } catch (e) {
+    console.warn("Model not found:", p, "-", e.message);
+  }
+});
 
 // ─── Route loader ─────────────────────────────────────────────────────────────
 const loadRoute = (routePath, mountPoint) => {
@@ -111,7 +114,7 @@ loadRoute("./src/routes/v1/appointment.routes", "/api/v1/appointments");
 loadRoute("./src/routes/v1/payment.routes", "/api/v1/payment");
 loadRoute("./src/routes/v1/courses.routes", "/api/v1/courses");
 loadRoute("./src/routes/v1/products.routes", "/api/v1/products");
-loadRoute("./src/routes/v1/youtube.routes", "/api/v1/youtube");
+loadRoute("./src/routes/v1/blogs.routes", "/api/v1/blogs");
 
 // Static files
 app.use("/public", express.static(path.join(__dirname, "public")));

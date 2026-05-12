@@ -6,7 +6,9 @@ const BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:4000";
 const api = axios.create({
   baseURL: BASE_URL,
   timeout: 30_000,
-  headers: { "Content-Type": "application/json" },
+  // ⚠️  Do NOT set Content-Type here — axios sets it automatically.
+  // Setting "application/json" here breaks FormData (multipart) uploads
+  // because it overrides the multipart/form-data boundary axios would set.
 });
 
 // ── Request interceptor ───────────────────────────────────────────────────────

@@ -6,31 +6,24 @@ const c = require("../../controllers/doctor/doctor.controller");
 const doctorAuth = require("../../controllers/doctor/doctor.auth.controller");
 const authDoctor = require("../../middlewares/auth/doctor.auth");
 
-// ── PUBLIC: login (NO auth middleware) ───────────────────────────────────────
-// Must be defined BEFORE router.use(authDoctor) otherwise the middleware
-// intercepts the request and returns 401 before the handler runs.
+// ── PUBLIC: login ───────────────────────────────────────────────────────────
 router.post("/login", doctorAuth.login);
 
-// ── All routes below this line require a valid doctor JWT ────────────────────
+// ── All routes below require doctor authentication ───────────────────────────
 router.use(authDoctor);
 
-// ── Appointments ──────────────────────────────────────────────────────────────
-// Static paths BEFORE dynamic /:id — otherwise Express matches "today" as :id
+// ── Appointments – static paths FIRST (before /:id) ───────────────────────────
 router.get("/appointments/today", c.getTodayAppointments);
 router.get("/appointments/date/:date", c.getAppointmentsByDate);
-router.get("/appointments/:id/details", c.getAppointmentDetails);
 router.get("/appointments", c.getAppointments);
+router.get("/appointments/:id", c.getAppointmentDetails);
 router.put("/appointments/:id/status", c.updateAppointmentStatus);
 
-// ── Calendar ──────────────────────────────────────────────────────────────────
+// ── Calendar & stats ─────────────────────────────────────────────────────────
 router.get("/calendar", c.getCalendarView);
-
-// ── Stats ─────────────────────────────────────────────────────────────────────
 router.get("/stats", c.getStats);
 
-// ── Debug: see actual date format stored in DB ────────────────────────────────
-// GET /api/v1/doctor/debug/dates  — returns 5 sample appointments with their raw date field
-// Remove after confirming date format.
+// ── Debug endpoint (optional) ────────────────────────────────────────────────
 router.get("/debug/dates", c.debugDateFormats);
 
 module.exports = router;

@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars */
 // pages/PaymentCallback.jsx
 // Paymob redirects here after payment.
 // We call our backend to verify + confirm the payment (don't rely on webhook for localhost).
@@ -15,7 +14,11 @@ const PaymentCallback = () => {
   const [params] = useSearchParams();
   const { clearCart } = useContext(ProductContext);
   const [status, setStatus] = useState("loading");
-  const [details, setDetails] = useState({ type: "generic", courseId: null });
+  const [details, setDetails] = useState({
+    type: "generic",
+    courseId: null,
+    appointmentId: null,
+  });
   const calledRef = useRef(false); // prevent double-call in React StrictMode
 
   useEffect(() => {
@@ -45,8 +48,13 @@ const PaymentCallback = () => {
     });
 
     // ── Detect payment type from merchantOrderId ───────────────────────────────
+    // Formats:
+    //   Appointment: "{24hexId}_{timestamp}"          e.g. "6a02fd73..._17785..."
+    //   Course:      "course-{24hexId}-{userId}-{ts}_{ts2}"
+    //   Product:     "order-..."
     let type = "product";
     let courseId = null;
+    let appointmentId = null;
 
     if (merchantOrderId.startsWith("course-guest-")) {
       type = "course";
@@ -58,10 +66,23 @@ const PaymentCallback = () => {
       courseId = m ? m[1] : merchantOrderId.split("-")[1] || null;
     } else if (merchantOrderId.startsWith("order-")) {
       type = "product";
+    } else {
+      // Appointment: merchantOrderId = "{appointmentId}_{timestamp}"
+      // appointmentId is a 24-char MongoDB ObjectId hex
+      const parts = merchantOrderId.split("_");
+      if (parts[0]?.match(/^[a-f0-9]{24}$/i)) {
+        type = "appointment";
+        appointmentId = parts[0];
+      }
     }
 
-    setDetails({ type, courseId });
-    console.log("Detected:", { type, courseId });
+    setDetails({ type, courseId, appointmentId });
+    console.log("Detected payment type:", {
+      type,
+      courseId,
+      appointmentId,
+      merchantOrderId,
+    });
 
     // ── Payment failed ─────────────────────────────────────────────────────────
     if (!success) {
@@ -76,29 +97,31 @@ const PaymentCallback = () => {
 
     // ── Payment succeeded — confirm with backend ───────────────────────────────
     try {
-      if (type === "course" && courseId) {
-        // Call backend to confirm enrollment (marks as paid + sends email)
-        // This bypasses the webhook dependency for localhost dev
+      if (type === "appointment") {
+        // Confirm appointment payment → marks as paid + confirmed
+        const { data } = await api.post(
+          "/api/v1/appointments/confirm-payment",
+          {
+            merchantOrderId,
+            transactionId,
+          },
+        );
+        console.log("Appointment confirm response:", data);
+        setStatus("success");
+        toast.success("🎉 تم الدفع وتأكيد موعدك! ستصلك رسالة تأكيد على بريدك");
+        setTimeout(() => navigate("/my-appointments"), 3500);
+      } else if (type === "course" && courseId) {
+        // Confirm course enrollment
         const { data } = await api.post("/api/v1/courses/confirm-payment", {
           merchantOrderId,
           transactionId,
           courseId,
         });
-
-        console.log("Confirm payment response:", data);
-
-        if (data.success) {
-          setStatus("success");
-          toast.success("🎉 تم الدفع! سيصلك رابط الكورس على بريدك الإلكتروني");
-          // Redirect to course details — will show "متابعة الكورس" since now enrolled
-          setTimeout(() => navigate(`/courses/${courseId}`), 3500);
-        } else {
-          // Enrollment might already be marked paid by webhook
-          setStatus("success");
-          setTimeout(() => navigate(`/courses/${courseId}`), 3500);
-        }
+        console.log("Course confirm response:", data);
+        setStatus("success");
+        toast.success("🎉 تم الدفع! سيصلك رابط الكورس على بريدك الإلكتروني");
+        setTimeout(() => navigate(`/courses/${courseId}`), 3500);
       } else if (type === "product") {
-        // Product purchase confirmed
         clearCart();
         setStatus("success");
         toast.success("🎉 تم الدفع! ستصلك فاتورة الشراء على بريدك");
@@ -109,9 +132,20 @@ const PaymentCallback = () => {
       }
     } catch (err) {
       console.error("Confirm payment error:", err);
-      // Even if confirm fails, show success (payment was made)
+      // Payment was made — show success even if backend confirm fails
       setStatus("success");
-      setTimeout(() => navigate(courseId ? `/courses/${courseId}` : "/"), 3500);
+      toast.success("تم الدفع بنجاح");
+      setTimeout(
+        () =>
+          navigate(
+            type === "appointment"
+              ? "/my-appointments"
+              : courseId
+                ? `/courses/${courseId}`
+                : "/",
+          ),
+        3500,
+      );
     }
   };
 
@@ -151,9 +185,11 @@ const PaymentCallback = () => {
               تم الدفع بنجاح! 🎉
             </h2>
             <p className="text-gray-500 leading-loose mb-6">
-              {details.type === "course"
-                ? "تم تفعيل اشتراكك في الكورس. سيصلك رابط المحتوى على بريدك الإلكتروني خلال دقائق."
-                : "ستصلك فاتورة الشراء على بريدك الإلكتروني."}
+              {details.type === "appointment"
+                ? "تم تأكيد موعدك بنجاح! ستصلك رسالة تأكيد على بريدك الإلكتروني."
+                : details.type === "course"
+                  ? "تم تفعيل اشتراكك في الكورس. سيصلك رابط المحتوى على بريدك الإلكتروني خلال دقائق."
+                  : "ستصلك فاتورة الشراء على بريدك الإلكتروني."}
             </p>
             <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden mb-3">
               <motion.div

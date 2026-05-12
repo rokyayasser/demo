@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { FaInstagram, FaFacebookF, FaYoutube, FaTiktok } from "react-icons/fa";
 import { FaCalendarDays, FaChevronRight, FaChevronLeft } from "react-icons/fa6";
-import img1 from "../../assets/1.webp";
-import img2 from "../../assets/3.webp";
+import img1 from "../../assets/1w.jpg";
+import img2 from "../../assets/3w.jpg";
 import img3 from "../../assets/5w.jpg";
 import img4 from "../../assets/6w.jpg";
 import img5 from "../../assets/8w.jpg";
@@ -146,7 +146,7 @@ const Header = () => {
       {/* Social Media Sidebar */}
       <div className="absolute right-8 top-1/2 -translate-y-1/2 z-50 flex flex-col items-center gap-6 border-r border-gray-400/50 pr-6 hidden md:flex">
         <a
-          href="https://www.facebook.com/DrAhmedElkhaateeb"
+          href="https://www.facebook.com/AhmedElkhaateeb"
           target="_blank"
           rel="noreferrer"
           className="text-xl hover:text-blue-400 transition-colors"

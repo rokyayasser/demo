@@ -139,8 +139,26 @@ const DoctorContextProvider = ({ children }) => {
         }
         return false;
       } catch (err) {
-        console.error("updateAppointmentStatus:", err.message);
+        toast.error("فشل تحديث الحالة");
         return false;
+      }
+    },
+    [authH],
+  );
+
+  // ── Single appointment details ────────────────────────────────────────────────
+  const getAppointmentDetails = useCallback(
+    async (id) => {
+      try {
+        const { data } = await api.get(
+          `/api/v1/doctor/appointments/${id}`,
+          authH(),
+        );
+        if (data.success) return data.data?.appointment || data.data;
+        return null;
+      } catch (err) {
+        console.error("getAppointmentDetails:", err.message);
+        return null;
       }
     },
     [authH],
@@ -155,8 +173,8 @@ const DoctorContextProvider = ({ children }) => {
           params: { month, year },
         });
         if (data.success) setCalendarData(data.data || {});
-      } catch {
-        // Handle error silently
+      } catch (err) {
+        console.error("getCalendarData:", err.message);
       }
     },
     [authH],
@@ -185,6 +203,7 @@ const DoctorContextProvider = ({ children }) => {
         todayAppointments,
         getTodayAppointments,
         getAppointmentsByDate,
+        getAppointmentDetails,
         updateAppointmentStatus,
         calendarData,
         getCalendarData,

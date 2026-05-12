@@ -12,11 +12,16 @@ import {
   Mail,
   ArrowRight,
   ArrowLeft,
+  Upload,
+  Paperclip,
+  Trash2,
 } from "lucide-react";
 import TimeSlots from "./TimeSlots";
 import Calendar from "./Calender";
 import { appointmentApi } from "../../api/appointment.api";
 import { AppContext, extractArabicError } from "../../context/AppContext";
+import DualPrice from "../common/DualPrice";
+import { getUsdToEgpRate, toUsd } from "../../utils/currency.service";
 
 const AppointmentModal = ({ isOpen, onClose, serviceInfo }) => {
   const { userData } = useContext(AppContext);
@@ -24,6 +29,14 @@ const AppointmentModal = ({ isOpen, onClose, serviceInfo }) => {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [slotsLoading, setSlotsLoading] = useState(false);
+  const [usdRate, setUsdRate] = useState(null);
+
+  // Fetch live USD/EGP exchange rate for price display and USD payment
+  useEffect(() => {
+    getUsdToEgpRate()
+      .then(setUsdRate)
+      .catch(() => setUsdRate(50));
+  }, []);
 
   const [state, setState] = useState({
     selectedDate: "",
@@ -32,7 +45,16 @@ const AppointmentModal = ({ isOpen, onClose, serviceInfo }) => {
     currentYear: new Date().getFullYear(),
     bookedSlots: {},
     blockedSlots: {},
-    formData: { name: "", email: "", phone: "", goals: "" },
+    formData: {
+      name: "",
+      email: "",
+      phone: "",
+      goals: "",
+      currentMedications: "", // text field for medications
+    },
+    paymentCurrency: "EGP", // "EGP" | "USD"
+    testsFiles: [], // array of File objects (tests)
+    medicationsFile: null, // single File (medications PDF/image)
   });
 
   // Pre-fill from user profile
@@ -221,7 +243,14 @@ const AppointmentModal = ({ isOpen, onClose, serviceInfo }) => {
       formData.append("date", arabicDate);
       formData.append("time", state.selectedTime);
       formData.append("category", serviceInfo.category || "استشارة");
-      formData.append("amount", String(serviceInfo.fees || 0));
+      // Amount in chosen currency
+      const paymentCurrency = state.paymentCurrency || "EGP";
+      const amountInCurrency =
+        paymentCurrency === "USD" && usdRate
+          ? parseFloat(toUsd(serviceInfo.fees, usdRate).replace("$", ""))
+          : serviceInfo.fees;
+      formData.append("amount", String(amountInCurrency || 0));
+      formData.append("currency", paymentCurrency);
       formData.append("firstName", firstName);
       formData.append("lastName", lastName);
       formData.append("email", state.formData.email);
@@ -237,10 +266,37 @@ const AppointmentModal = ({ isOpen, onClose, serviceInfo }) => {
         state.formData.goals || "استشارة عامة",
       );
       formData.append("consultationGoal", state.formData.goals || "استشارة");
+      formData.append(
+        "currentMedications",
+        state.formData.currentMedications || "",
+      );
+
+      // Attach uploaded files
+      if (state.medicationsFile) {
+        formData.append("medicationsFile", state.medicationsFile);
+      }
+      if (state.testsFiles?.length) {
+        state.testsFiles.forEach((f) => formData.append("testsFile", f));
+      }
 
       const res = await appointmentApi.bookAppointment(formData);
 
       if (res.success) {
+        // If Paymob returned a payment URL, redirect to payment page
+        const paymentUrl = res.data?.paymentUrl || res.data?.iframeUrl;
+        if (paymentUrl) {
+          toast.info("جارٍ تحويلك لصفحة الدفع...");
+          sessionStorage.setItem(
+            "pending_appointment",
+            JSON.stringify({
+              appointmentId: res.data?.appointmentId,
+              email: state.formData.email,
+              name: state.formData.name,
+            }),
+          );
+          window.location.href = paymentUrl;
+          return;
+        }
         setStep(5);
       } else {
         // Show the specific Arabic error from the server
@@ -374,9 +430,7 @@ const AppointmentModal = ({ isOpen, onClose, serviceInfo }) => {
                                 <p className="text-gray-500 text-sm mb-1">
                                   السعر
                                 </p>
-                                <p className="text-3xl font-extrabold text-[#2d1b5a]">
-                                  {serviceInfo.fees} جنية
-                                </p>
+                                <DualPrice egp={serviceInfo.fees} size="lg" />
                               </div>
                               <div className="bg-[#eef2fc] p-6 rounded-2xl text-center border border-[#dbe4ff] flex flex-col items-center justify-center">
                                 <Clock
@@ -516,6 +570,134 @@ const AppointmentModal = ({ isOpen, onClose, serviceInfo }) => {
                                   className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#2d1b5a]/50 outline-none resize-none"
                                 />
                               </div>
+                              {/* ── Medications text ── */}
+                              <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-2">
+                                  الأدوية الحالية (اختياري)
+                                </label>
+                                <textarea
+                                  rows="3"
+                                  placeholder="اكتب أسماء الأدوية التي تتناولها حالياً…"
+                                  value={state.formData.currentMedications}
+                                  onChange={(e) =>
+                                    setState((p) => ({
+                                      ...p,
+                                      formData: {
+                                        ...p.formData,
+                                        currentMedications: e.target.value,
+                                      },
+                                    }))
+                                  }
+                                  className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#2d1b5a]/50 outline-none resize-none"
+                                />
+                              </div>
+
+                              {/* ── Upload medications file ── */}
+                              <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-2">
+                                  رفع وصفة الأدوية (PDF أو صورة — اختياري)
+                                </label>
+                                <label className="flex items-center gap-3 p-4 bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-[#2d1b5a]/40 transition">
+                                  <Upload className="w-5 h-5 text-gray-400 shrink-0" />
+                                  <span className="text-sm text-gray-500 flex-1 truncate">
+                                    {state.medicationsFile
+                                      ? state.medicationsFile.name
+                                      : "اضغط لاختيار ملف"}
+                                  </span>
+                                  {state.medicationsFile && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        setState((p) => ({
+                                          ...p,
+                                          medicationsFile: null,
+                                        }));
+                                      }}
+                                      className="text-red-400 hover:text-red-600"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                  <input
+                                    type="file"
+                                    accept="image/*,.pdf"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                      const f = e.target.files?.[0];
+                                      if (f)
+                                        setState((p) => ({
+                                          ...p,
+                                          medicationsFile: f,
+                                        }));
+                                    }}
+                                  />
+                                </label>
+                              </div>
+
+                              {/* ── Upload medical tests ── */}
+                              <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-2">
+                                  رفع التحاليل الطبية (صور أو PDF — اختياري،
+                                  يمكن رفع أكثر من ملف)
+                                </label>
+                                <label className="flex items-center gap-3 p-4 bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-[#2d1b5a]/40 transition">
+                                  <Paperclip className="w-5 h-5 text-gray-400 shrink-0" />
+                                  <span className="text-sm text-gray-500">
+                                    {state.testsFiles?.length
+                                      ? `${state.testsFiles.length} ملف مختار`
+                                      : "اضغط لاختيار التحاليل"}
+                                  </span>
+                                  <input
+                                    type="file"
+                                    accept="image/*,.pdf"
+                                    multiple
+                                    className="hidden"
+                                    onChange={(e) => {
+                                      const files = Array.from(
+                                        e.target.files || [],
+                                      );
+                                      setState((p) => ({
+                                        ...p,
+                                        testsFiles: [
+                                          ...(p.testsFiles || []),
+                                          ...files,
+                                        ],
+                                      }));
+                                    }}
+                                  />
+                                </label>
+                                {state.testsFiles?.length > 0 && (
+                                  <div className="mt-2 space-y-1">
+                                    {state.testsFiles.map((f, i) => (
+                                      <div
+                                        key={i}
+                                        className="flex items-center gap-2 text-xs text-gray-600 bg-white border border-gray-100 rounded-lg px-3 py-2"
+                                      >
+                                        <Paperclip className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                                        <span className="flex-1 truncate">
+                                          {f.name}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            setState((p) => ({
+                                              ...p,
+                                              testsFiles: p.testsFiles.filter(
+                                                (_, idx) => idx !== i,
+                                              ),
+                                            }))
+                                          }
+                                          className="text-red-400 hover:text-red-600"
+                                        >
+                                          <X className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+
                               <div className="bg-[#fffbeb] border border-[#fde68a] p-4 rounded-xl flex items-center gap-3">
                                 <CheckCircle2
                                   className="text-[#f59e0b] shrink-0"
@@ -650,9 +832,7 @@ const AppointmentModal = ({ isOpen, onClose, serviceInfo }) => {
                           <span className="font-bold text-gray-900">
                             المجموع
                           </span>
-                          <span className="font-extrabold text-[#2d1b5a] text-2xl">
-                            {serviceInfo.fees} جنية
-                          </span>
+                          <DualPrice egp={serviceInfo.fees} size="md" />
                         </div>
                       </div>
                       <div className="flex gap-3">
@@ -664,22 +844,45 @@ const AppointmentModal = ({ isOpen, onClose, serviceInfo }) => {
                             <ArrowRight size={20} />
                           </button>
                         )}
-                        <button
-                          onClick={step === 4 ? handleSubmit : handleNext}
-                          disabled={loading}
-                          className="flex-1 py-4 rounded-xl font-bold text-white bg-[#2d1b5a] hover:bg-[#3f267a] shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-60"
-                        >
-                          {loading ? (
-                            <div className="animate-spin rounded-full h-6 w-6 border-2 border-white border-t-transparent" />
-                          ) : step === 4 ? (
-                            "تأكيد الحجز"
-                          ) : (
-                            <>
-                              <span>التالي</span>
-                              <ArrowLeft size={20} />
-                            </>
+                        <div className="flex-1 flex flex-col gap-2">
+                          {/* Price display on final step */}
+                          {step === 4 && Number(serviceInfo.fees) > 0 && (
+                            <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-center">
+                              <p className="text-xs text-gray-400 mb-1">
+                                المبلغ المطلوب
+                              </p>
+                              <p className="font-extrabold text-[#2d1b5a] text-xl">
+                                {Number(serviceInfo.fees).toLocaleString(
+                                  "ar-EG",
+                                )}{" "}
+                                جنيه
+                              </p>
+                              {usdRate && (
+                                <p className="text-xs text-gray-400 mt-0.5">
+                                  ≈ {toUsd(serviceInfo.fees, usdRate)} (للمرجعية
+                                  فقط)
+                                </p>
+                              )}
+                            </div>
                           )}
-                        </button>
+
+                          <button
+                            onClick={step === 4 ? handleSubmit : handleNext}
+                            disabled={loading}
+                            className="w-full py-4 rounded-xl font-bold text-white bg-[#2d1b5a] hover:bg-[#3f267a] shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                          >
+                            {loading ? (
+                              <div className="animate-spin rounded-full h-6 w-6 border-2 border-white border-t-transparent" />
+                            ) : step === 4 ? (
+                              "تأكيد الحجز والدفع"
+                            ) : (
+                              <>
+                                <span>التالي</span>
+                                <ArrowLeft size={20} />
+                              </>
+                            )}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
