@@ -20,7 +20,7 @@ try {
 // ── Fix 1: correct path ──────────────────────────────────────────────────────
 let BlockedSlot;
 try {
-  BlockedSlot = require("../../models/BlockedSlot"); // was "../models/BlockedSlot" ← wrong
+  BlockedSlot = require("../../models/Blockedslot"); // was "../models/BlockedSlot" ← wrong
 } catch (e) {
   console.warn("BlockedSlot model not found:", e.message);
 }

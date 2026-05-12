@@ -79,8 +79,8 @@ app.get("/", (req, res) => {
 // references a model that hasn't been required yet — pre-registering all models
 // here at startup prevents that error regardless of route load order.
 const preRegister = [
-  "./src/models/BlockedSlot", // capital S — Linux is case-sensitive
-  "./src/models/CourseEnrollment",
+  "./src/models/Blockedslot", // capital S — Linux is case-sensitive
+  "./src/models/Courseenrollment",
   "./src/models/Course",
   "./src/models/MedicalService", // needed by appointment populate("serviceId")
   "./src/models/Appointment", // needed by doctor/admin routes
