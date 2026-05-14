@@ -19,20 +19,20 @@ const features = [
     icon: RefreshCw,
     title: "متابعة دورية",
     desc: "مراجعة منتظمة لمراقبة تقدمك وتوجيه مسارك الصحي بشكل مستمر ومنظم",
-    gradient: "from-[#1a3a6e] to-[#2d5aa8]",
-    iconBg: "bg-blue-400/20",
-    iconColor: "text-blue-300",
-    border: "border-blue-400/20",
+    gradient: "from-[#1a0f3a] to-[#2d1b5a]",
+    iconBg: "bg-violet-400/20",
+    iconColor: "text-violet-300",
+    border: "border-violet-500/20",
   },
   {
     id: 3,
     icon: Salad,
     title: "خطة تغذية شخصية",
     desc: "بيانات غذائية مخصصة مصممة خصيصاً لاحتياجاتك وأهدافك الصحية",
-    gradient: "from-[#1a4a2e] to-[#2d7a4a]",
-    iconBg: "bg-emerald-400/20",
-    iconColor: "text-emerald-300",
-    border: "border-emerald-400/20",
+    gradient: "from-[#3b1f6e] to-[#6d28d9]",
+    iconBg: "bg-purple-400/20",
+    iconColor: "text-purple-200",
+    border: "border-purple-500/20",
   },
 ];
 
@@ -61,7 +61,7 @@ const WhyChooseUs = () => {
             (
               {
                 id,
-                icon: IconComponent,
+                icon: Icon,
                 title,
                 desc,
                 gradient,
@@ -76,7 +76,7 @@ const WhyChooseUs = () => {
                   className={`relative overflow-hidden rounded-2xl border ${border}
                   bg-gradient-to-br ${gradient}
                   p-7 flex flex-col gap-5 h-full
-                  transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl hover:shadow-black/30`}
+                  transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl hover:shadow-[#9b61db]/20`}
                 >
                   {/* Decorative glow circle */}
                   <div className="absolute -top-8 -left-8 w-32 h-32 rounded-full bg-white/5 blur-2xl pointer-events-none" />
@@ -85,7 +85,7 @@ const WhyChooseUs = () => {
                   <div
                     className={`w-12 h-12 rounded-xl ${iconBg} flex items-center justify-center`}
                   >
-                    <IconComponent className={`w-6 h-6 ${iconColor}`} />
+                    <Icon className={`w-6 h-6 ${iconColor}`} />
                   </div>
 
                   {/* Text */}

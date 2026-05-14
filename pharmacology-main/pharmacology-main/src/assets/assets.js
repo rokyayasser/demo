@@ -17,10 +17,13 @@ import header3 from "./header-3.jpg";
 import header4 from "./header-4.jpg";
 import blogBanner from "./blog-banner.png";
 import profile from "./profile.jpg";
-import certeficate1 from "./certificate-1.jpg";
-import certeficate2 from "./certificate-2.jpg";
-
-
+import cert1 from "./cert1.png";
+import cert2 from "./cert2.png";
+import cert3 from "./cert3.png";
+import cert4 from "./cert4.png";
+import cert5 from "./cert5.png";
+import cert6 from "./cert6.png";
+import cert7 from "./cert7.png";
 
 export const assets = {
   menu_icon,
@@ -41,10 +44,13 @@ export const assets = {
   header4,
   blogBanner,
   profile,
-  certeficate1,
-  certeficate2,
-
-
+  cert1,
+  cert2,
+  cert3,
+  cert4,
+  cert5,
+  cert6,
+  cert7,
 };
 
 export const Medicalservices = [

@@ -1,7 +1,27 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { GraduationCap, Briefcase, Globe, HeartPulse, Award, ArrowDown, Activity, Lightbulb, Leaf, Scale, Quote, Heart, Target, User, Apple, Beaker, ShieldCheck, X, ArrowLeft } from "lucide-react";
+import {
+  GraduationCap,
+  Briefcase,
+  Globe,
+  HeartPulse,
+  Award,
+  ArrowDown,
+  Activity,
+  Lightbulb,
+  Leaf,
+  Scale,
+  Quote,
+  Heart,
+  Target,
+  User,
+  Apple,
+  Beaker,
+  ShieldCheck,
+  X,
+  ArrowLeft,
+} from "lucide-react";
 import { assets } from "../assets/assets"; // تأكد من مسار الصور
 import AnimatedText from "../components/common/AnimatedContent";
 import Button from "../components/common/Button";
@@ -66,7 +86,6 @@ const timelineData = [
   },
 ];
 
-
 // (Certificates Data)
 
 const certificatesData = [
@@ -74,69 +93,59 @@ const certificatesData = [
     id: 1,
     title: "SCOPE Certified",
     subtitle: "World Obesity Federation",
-    desc: "اعتماد دولي في إدارة السمنة وعلاجها وفق أحدث المعايير العالمية.",
-    image: assets.certeficate1,
+    desc: "معتمد في برنامج التثقيف المهني للسمنة (SCOPE) من الاتحاد العالمي للسمنة، يتيح تحديث المعرفة بعلاج السمنة.",
+    image: assets.cert7,
     icon: <Award size={18} />,
   },
   {
     id: 2,
-    title: "Weight Management",
-    subtitle: "Emory University",
-    desc: "برنامج متخصص في إدارة الوزن من إحدى أعرق الجامعات الأمريكية.",
-    image: assets.certeficate2,
+    title: "Weight Management: Beyond Balancing Calories",
+    subtitle: "Emory University (via Coursera)",
+    desc: "دورة معتمدة من جامعة إيموري في إدارة الوزن تتجاوز موازنة السعرات الحرارية.",
+    image: assets.cert6,
     icon: <Scale size={18} />,
   },
   {
     id: 3,
-    title: "Food & Health",
-    subtitle: "Stanford University",
-    desc: "شهادة في العلاقة بين الغذاء والصحة من جامعة ستانفورد العالمية.",
-    image: assets.certeficate1,
+    title: "Introduction to Food and Health",
+    subtitle: "Stanford University (via Coursera)",
+    desc: "شهادة من جامعة ستانفورد حول العلاقة بين الغذاء والصحة، مقدمة من د. مايا آدم.",
+    image: assets.cert5,
     icon: <Apple size={18} />,
   },
   {
     id: 4,
-    title: "Clinical Nutrition",
-    subtitle: "Mediance Academy",
-    desc: "دبلوم متخصص في التغذية الإكلينيكية وتطبيقاتها العلاجية.",
-    image: assets.certeficate2,
+    title: "Clinical Nutrition & Therapeutic Diets",
+    subtitle: "Mediance Academy for Training",
+    desc: "180 ساعة عمل في عيادات الأكاديمية (2019-2026) تشمل أنظمة غذائية لمرضى السكر، الكبد، الضغط، تقييم السعرات للرياضيين، وعلاج السمنة والنحافة للأطفال.",
+    image: assets.cert1,
     icon: <Beaker size={18} />,
   },
   {
     id: 5,
     title: "Total Nutrition Diploma",
-    subtitle: "ONE Training Academy",
-    desc: "دبلوم شامل في التغذية الكاملة يغطي جميع جوانب الصحة الغذائية.",
-    image: assets.certeficate1,
+    subtitle: "ONE Training Academy (accredited by IAO)",
+    desc: "دبلوم التغذية الكاملة مع 180 ساعة معتمدة، صادر في 18 نوفمبر 2022.",
+    image: assets.cert2,
     icon: <Heart size={18} />,
   },
   {
     id: 6,
-    title: "Florida Academy Certifications",
-    subtitle: "Florida Academy",
-    desc: "شهادات متعددة في التغذية والصحة الشاملة من أكاديمية فلوريدا.",
-    image: assets.certeficate2,
+    title: "Diploma of Total Nutrition",
+    subtitle: "The Florida Academy for Medical Sciences (FAMS)",
+    desc: "دبلوم في التغذية الكاملة، رقم المؤهل FAMS18AN1001، 180 ساعة، 4 ديسمبر 2022.",
+    image: assets.cert3,
     icon: <ShieldCheck size={18} />,
   },
   {
     id: 7,
-    title: "Holistic Nutrition",
-    subtitle: "School of Natural Health Sciences",
-    desc: "تخصص في التغذية الشاملة والطب الطبيعي من مدرسة العلوم الصحية.",
-    image: assets.certeficate1,
+    title: "Florida Academy – Official State Registration",
+    subtitle: "Florida Department of State",
+    desc: "تسجيل الاسم التجاري 'The Florida Academy for Medical Sciences' (رقم G21000129868) معتمد من ولاية فلوريدا – دليل على شرعية الأكاديمية.",
+    image: assets.cert4,
     icon: <Leaf size={18} />,
   },
-  {
-    id: 8,
-    title: "بكالوريوس الصيدلة",
-    subtitle: "جامعة أسيوط",
-    desc: "الأساس العلمي الأكاديمي الذي بنى عليه الدكتور أحمد مسيرته المهنية.",
-    image: assets.certeficate2,
-    icon: <GraduationCap size={18} />,
-  }
 ];
-
-
 
 const About = () => {
   // للنزول السلس إلى قسم الخط الزمني
@@ -147,10 +156,8 @@ const About = () => {
     }
   };
 
-
   // --- ضع هذا الـ State في بداية مكون About ---
   const [selectedCert, setSelectedCert] = useState(null);
-
 
   // لمنع التمرير (Scroll) في الصفحة الخلفية عندما تكون النافذة المنبثقة مفتوحة
   useEffect(() => {
@@ -164,14 +171,15 @@ const About = () => {
     };
   }, [selectedCert]);
 
-
   return (
     // استخدام لون الخلفية البنفسجي الداكن كما في التصميم
-    <div className=" mt-40 my-12 min-h-screen   font-sans overflow-hidden" dir="rtl">
+    <div
+      className=" mt-40 my-12 min-h-screen   font-sans overflow-hidden"
+      dir="rtl"
+    >
       {/* ================= Hero Section ================= */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 mb-32">
         <div className="flex flex-col lg:flex-row items-center gap-16">
-
           {/* Right Text Content */}
           <div className="w-full lg:w-1/2 text-right">
             <AnimatedText delay={0.1}>
@@ -189,15 +197,13 @@ const About = () => {
             <AnimatedText delay={0.3}>
               <p className="text-gray-300 text-lg leading-loose mb-10 max-w-lg opacity-90">
                 صيدلي وأخصائي تغذية علاجية متخصص في الطب الشمولي. <br />
-                رحلتي بدأت في الصيدلة، لكن مهمتي أصبحت فهم جذور الصحة – وليس فقط علاج الأعراض. أؤمن بأن الصحة الحقيقية تبدأ من تغيير نمط الحياة.
+                رحلتي بدأت في الصيدلة، لكن مهمتي أصبحت فهم جذور الصحة – وليس فقط
+                علاج الأعراض. أؤمن بأن الصحة الحقيقية تبدأ من تغيير نمط الحياة.
               </p>
             </AnimatedText>
 
             <AnimatedText delay={0.4}>
-              <Button
-                onClick={scrollToTimeline}
-
-              >
+              <Button onClick={scrollToTimeline}>
                 <div className="flex items-center justify-center gap-3 ">
                   تعرف على رحلتي
                   <ArrowDown size={20} className="animate-bounce" />
@@ -227,15 +233,19 @@ const About = () => {
       </div>
 
       {/* ================= Timeline Section ================= */}
-      <div id="timeline-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 relative">
-
+      <div
+        id="timeline-section"
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 relative"
+      >
         {/* الخط العمودي المركزي (للشاشات الكبيرة) */}
         <div className="hidden md:block absolute left-1/2 top-0 bottom-0 w-0.5 bg-white/10 -translate-x-1/2"></div>
 
         <div className="space-y-20 md:space-y-32">
           {timelineData.map((item, index) => (
-            <div key={item.id} className="relative flex flex-col md:flex-row items-center justify-between w-full">
-
+            <div
+              key={item.id}
+              className="relative flex flex-col md:flex-row items-center justify-between w-full"
+            >
               {/* === العمود الأيمن في الـ Grid (الصور) === */}
               {/* يظهر على اليمين بصرياً بسبب dir="rtl" */}
               <div className="w-full md:w-[45%] flex justify-end md:justify-start mb-8 md:mb-0">
@@ -245,13 +255,19 @@ const About = () => {
                   viewport={{ once: true, margin: "-100px" }}
                   className="w-full max-w-sm rounded-[2rem] overflow-hidden border-2 border-white/5 shadow-xl hidden md:block"
                 >
-                  <img src={item.image} alt={item.title} className="w-full h-48 lg:h-56 object-cover" />
+                  <img
+                    src={item.image}
+                    alt={item.title}
+                    className="w-full h-48 lg:h-56 object-cover"
+                  />
                 </motion.div>
               </div>
 
               {/* === المركز (الأيقونة والتاريخ) === */}
               <div className="absolute left-8 md:left-1/2 md:-translate-x-1/2 flex flex-col items-center z-10">
-                <span className="text-gray-400 text-sm font-bold mb-3 bg-[#13072e] px-2">{item.year}</span>
+                <span className="text-gray-400 text-sm font-bold mb-3 bg-[#13072e] px-2">
+                  {item.year}
+                </span>
                 <motion.div
                   initial={{ scale: 0 }}
                   whileInView={{ scale: 1 }}
@@ -285,17 +301,14 @@ const About = () => {
                   </p>
                 </motion.div>
               </div>
-
             </div>
           ))}
         </div>
       </div>
 
-
       {/* ================= (Turning Point) ================= */}
       <div className="relative w-full py-24 mt-20 ">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10">
-
           {/* Header */}
           <div className="flex flex-col items-center text-center mb-16">
             <motion.div
@@ -313,7 +326,8 @@ const About = () => {
 
             <AnimatedText delay={0.2}>
               <p className="text-lg md:text-xl max-w-2xl opacity-90">
-                أدركت أن الدواء وحده ليس الحل الجذري. الشفاء الحقيقي يبدأ من تغيير نمط الحياة.
+                أدركت أن الدواء وحده ليس الحل الجذري. الشفاء الحقيقي يبدأ من
+                تغيير نمط الحياة.
               </p>
             </AnimatedText>
           </div>
@@ -324,31 +338,33 @@ const About = () => {
               {
                 title: "التغذية العلاجية",
                 desc: "التحول نحو الغذاء كدواء حقيقي يعالج الجذور لا الأعراض",
-                icon: <Leaf size={24} />
+                icon: <Leaf size={24} />,
               },
               {
                 title: "الطب الشمولي",
                 desc: "دراسة الشفاء الشامل الذي يجمع بين الجسم والعقل والبيئة",
-                icon: <HeartPulse size={24} />
+                icon: <HeartPulse size={24} />,
               },
               {
                 title: "توازن الحياة",
                 desc: "الإيمان العميق بأن التوازن الغذائي هو أساس الصحة المستدامة",
-                icon: <Scale size={24} />
-              }
+                icon: <Scale size={24} />,
+              },
             ].map((card, index) => (
               <motion.div
                 key={index}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: 0.2 + (index * 0.1) }}
+                transition={{ delay: 0.2 + index * 0.1 }}
                 className="bg-[#e4ddef] rounded-2xl p-8 flex flex-col items-center text-center shadow-lg hover:shadow-xl transition-shadow"
               >
                 <div className="w-12 h-12 rounded-xl bg-white/70 flex items-center justify-center text-[#2d1b5a] mb-6 shadow-sm">
                   {card.icon}
                 </div>
-                <h3 className="text-xl font-bold gradient-text mb-3">{card.title}</h3>
+                <h3 className="text-xl font-bold gradient-text mb-3">
+                  {card.title}
+                </h3>
                 <p className="text-[#432570] font-medium leading-relaxed text-sm md:text-base">
                   {card.desc}
                 </p>
@@ -365,27 +381,29 @@ const About = () => {
             className="bg-white/70 rounded-3xl py-10 px-8 md:px-16 flex items-center justify-between relative overflow-hidden shadow-2xl"
           >
             {/* علامة تنصيص يمين */}
-            <Quote className="text-[#6B3FA0] opacity-40 rotate-180 absolute right-0 top-4" size={50} />
+            <Quote
+              className="text-[#6B3FA0] opacity-40 rotate-180 absolute right-0 top-4"
+              size={50}
+            />
 
             <h3 className="text-2xl md:text-4xl font-bold gradient-text text-center w-full z-10 relative">
               الصحة الحقيقية تبدأ من كيفية عيشنا
             </h3>
 
             {/* علامة تنصيص يسار */}
-            <Quote className="text-[#6B3FA0] opacity-40 absolute left-0 bottom-4" size={50} />
+            <Quote
+              className="text-[#6B3FA0] opacity-40 absolute left-0 bottom-4"
+              size={50}
+            />
           </motion.div>
-
         </div>
       </div>
-
 
       {/* =================(Social Section) ================= */}
 
       <AnimatedText delay={0.1}>
         <SocialSection />
       </AnimatedText>
-
-
 
       {/* =================(Mission Statement) ================= */}
       <div className="">
@@ -405,7 +423,8 @@ const About = () => {
             {/* النص الرئيسي */}
             <AnimatedText delay={0.2}>
               <h2 className="text-2xl md:text-4xl lg:text-5xl font-bold gradient-text leading-[1.6] mb-16 max-w-4xl">
-                نحن لا نعالج أعراضاً، بل نبني إنساناً جديداً بصحة أقوى من خلال تغيير أساسيات الحياة
+                نحن لا نعالج أعراضاً، بل نبني إنساناً جديداً بصحة أقوى من خلال
+                تغيير أساسيات الحياة
               </h2>
             </AnimatedText>
 
@@ -421,7 +440,7 @@ const About = () => {
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
-                  transition={{ delay: 0.4 + (index * 0.1) }}
+                  transition={{ delay: 0.4 + index * 0.1 }}
                   className="flex items-center gap-4"
                 >
                   <div className="p-3 rounded-xl bg-[#f5f0ff] border border-[#d9c7f2] text-[#2d1b5a] flex items-center justify-center shadow-sm">
@@ -437,13 +456,10 @@ const About = () => {
         </div>
       </div>
 
-
-
       {/* ================= Certificates ================= */}
       {/* ================= قسم الشهادات المعتمدة ================= */}
       <div className="w-full py-20  relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10">
-
           {/* عنوان القسم */}
           <div className="text-right mb-12">
             <AnimatedText delay={0.1}>
@@ -470,7 +486,6 @@ const About = () => {
                 onClick={() => setSelectedCert(cert)} // فتح النافذة عند الضغط على الكارت
                 className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 flex flex-col border border-gray-100 group cursor-pointer"
               >
-
                 <div className="relative h-48 w-full bg-gray-100 overflow-hidden">
                   <img
                     src={cert.image}
@@ -486,8 +501,12 @@ const About = () => {
 
                 {/* الجزء السفلي: النصوص */}
                 <div className="p-6 flex flex-col flex-grow text-right">
-                  <h3 className="text-[#2d1b5a] font-bold text-lg mb-1">{cert.title}</h3>
-                  <p className="text-[#9b61db] text-sm font-medium mb-3">{cert.subtitle}</p>
+                  <h3 className="text-[#2d1b5a] font-bold text-lg mb-1">
+                    {cert.title}
+                  </h3>
+                  <p className="text-[#9b61db] text-sm font-medium mb-3">
+                    {cert.subtitle}
+                  </p>
                   <p className="text-gray-500 text-sm leading-relaxed mb-6 flex-grow line-clamp-2">
                     {cert.desc}
                   </p>
@@ -521,7 +540,6 @@ const About = () => {
                 onClick={(e) => e.stopPropagation()} // منع الإغلاق عند الضغط داخل النافذة
                 dir="rtl"
               >
-
                 {/* رأس النافذة (Header) */}
                 <div className="flex items-center justify-between p-5 md:p-6 border-b border-gray-100 bg-white z-10">
                   <div className="flex items-center gap-4">
@@ -529,8 +547,12 @@ const About = () => {
                       {selectedCert.icon}
                     </div>
                     <div>
-                      <h3 className="text-xl md:text-2xl font-bold text-[#2d1b5a]">{selectedCert.title}</h3>
-                      <p className="text-[#9b61db] text-sm font-medium">{selectedCert.subtitle}</p>
+                      <h3 className="text-xl md:text-2xl font-bold text-[#2d1b5a]">
+                        {selectedCert.title}
+                      </h3>
+                      <p className="text-[#9b61db] text-sm font-medium">
+                        {selectedCert.subtitle}
+                      </p>
                     </div>
                   </div>
 
@@ -553,21 +575,15 @@ const About = () => {
                     {selectedCert.desc}
                   </p>
                 </div>
-
               </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
-
       </div>
-
-
 
       {/* ================= (CTA) ================= */}
 
       <CTA />
-
-
     </div>
   );
 };
