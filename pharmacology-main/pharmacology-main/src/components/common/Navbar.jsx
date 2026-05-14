@@ -160,7 +160,7 @@ const Navbar = () => {
               className="px-6 py-1.5 md:px-8 md:py-2 hidden lg:block"
               to="/login"
             >
-              دخول
+              تسجيل
             </Button>
           )}
 

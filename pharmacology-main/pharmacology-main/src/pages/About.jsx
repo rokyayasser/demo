@@ -107,7 +107,7 @@ const certificatesData = [
   },
   {
     id: 3,
-    title: "Introduction to Food and Health",
+    title: "Stanford Introduction to Food and Health",
     subtitle: "Stanford University (via Coursera)",
     desc: "شهادة من جامعة ستانفورد حول العلاقة بين الغذاء والصحة، مقدمة من د. مايا آدم.",
     image: assets.cert5,
