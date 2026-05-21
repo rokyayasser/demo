@@ -4,18 +4,24 @@ import { FiClock, FiCalendar, FiMonitor } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { CourseContext } from "../../context/CourseContext";
 import Carousel from "../common/Carousel";
+import AnimatedText from "../common/AnimatedContent";
 import { FEATURES } from "../../config/features";
+import { getUsdToEgpRate, toUsd } from "../../utils/currency.service";
 
 const CoursesSection = () => {
+  const [usdRate, setUsdRate] = React.useState(null);
+  React.useEffect(() => {
+    getUsdToEgpRate().then(setUsdRate);
+  }, []);
   const { courses, getAllCourses, isLoading } = useContext(CourseContext);
+
+  // ── Hide section entirely when coming soon ────────────────────────────────
+  if (FEATURES.COURSES_COMING_SOON) return null;
 
   // Trigger fetch if courses haven't loaded yet
   useEffect(() => {
     if (courses.length === 0) getAllCourses();
   }, []);
-
-  // ── Hide section entirely when coming soon ────────────────────────────────
-  if (FEATURES.COURSES_COMING_SOON) return null;
 
   /** Map a Course document → Carousel card shape */
   const carouselData = courses
@@ -27,7 +33,7 @@ const CoursesSection = () => {
       image: c.image,
       title: c.title_ar || c.title,
       desc: c.description_ar || c.description || "",
-      price: `${c.price} جنيه`,
+      price: usdRate ? toUsd(c.price, usdRate) : "...",
       meta1: c.duration || "10 ساعات",
       meta2: c.instructor || "أونلاين",
     }));

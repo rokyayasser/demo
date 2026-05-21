@@ -86,6 +86,7 @@ const preRegister = [
   "./src/models/Appointment", // needed by doctor/admin routes
   "./src/models/User",
   "./src/models/Product",
+  "./src/models/Admin",
 ];
 preRegister.forEach((p) => {
   try {

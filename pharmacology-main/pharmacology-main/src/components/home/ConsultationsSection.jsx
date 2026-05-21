@@ -3,10 +3,12 @@ import React, { useState, useContext } from "react";
 import { FiClock, FiMonitor, FiCalendar } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { MedicalContext } from "../../context/MedicalContext";
-import Carousel from "../common/Carousel";
-import AnimatedText from "../common/AnimatedContent";
+import Carousel from "../../components/common/Carousel";
+import AnimatedText from "../../components/common/AnimatedContent";
 import { Link } from "react-router-dom";
 import AppointmentModal from "../appointment/AppointmentModal";
+import { getUsdToEgpRate, toUsd } from "../../utils/currency.service";
+import DualPrice from "../../components/common/DualPrice";
 
 /**
  * ConsultationsSection — Home page section.
@@ -16,6 +18,11 @@ const ConsultationsSection = () => {
   const { Medicalservices, loading } = useContext(MedicalContext);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedService, setSelectedService] = useState(null);
+  const [usdRate, setUsdRate] = useState(null);
+
+  React.useEffect(() => {
+    getUsdToEgpRate().then(setUsdRate);
+  }, []);
 
   /** Map a MedicalService document → shape the Carousel card expects */
   const toCarouselItem = (service) => ({
@@ -24,7 +31,7 @@ const ConsultationsSection = () => {
     image: service.image,
     title: service.title_ar || service.title,
     desc: service.description || "",
-    price: `${service.fees} جنيه`,
+    price: usdRate ? toUsd(service.fees, usdRate) : "...",
     meta1: service.duration || "30 دقيقة",
     meta2: service.category_ar || service.category || "",
     // Keep the full service so the modal gets it

@@ -35,12 +35,14 @@ import CourseLearning from "./pages/course/CourseLearning";
 
 import CheckoutPage from "./pages/product/CheckOutPage";
 import PaymentCallback from "./pages/PaymentCallback";
+import ForgotPassword from "./pages/ForgotPassword";
 
 const App = () => {
   const location = useLocation();
 
   // Hide Navbar and Footer on login page
-  const hideLayout = location.pathname === "/login";
+  const hideLayout =
+    location.pathname === "/login" || location.pathname === "/forgot-password";
 
   // Scroll to top on every route change
   useEffect(() => {
@@ -92,6 +94,7 @@ const App = () => {
             <Route path="/products/:id" element={<ProductDetails />} />
             <Route path="/my-appointments" element={<MyAppointments />} />
             <Route path="/my-courses" element={<MyCourses />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
 
             {/* Protected Routes */}
             <Route

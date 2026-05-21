@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Search, Package, Star, ShoppingCart } from "lucide-react";
 import { ProductContext } from "../../context/ProductContext";
 import AnimatedText from "../../components/common/AnimatedContent";
+import DualPrice from "../../components/common/DualPrice";
 import ComingSoon from "../../components/common/CommingSoon";
 import { FEATURES } from "../../config/features";
 
@@ -106,18 +107,24 @@ const ProductCard = ({ product, onView }) => {
         <div className="flex items-center justify-between mb-4">
           <div>
             {product.discountPrice && product.discountPrice < product.price ? (
-              <div className="flex items-center gap-2">
-                <span className="text-xl font-extrabold text-[#9b61db]">
-                  {product.discountPrice.toLocaleString()} ج.م
-                </span>
-                <span className="text-sm text-gray-400 line-through">
-                  {product.price?.toLocaleString()}
-                </span>
+              <div className="flex flex-col items-start gap-0.5">
+                <DualPrice
+                  egp={product.discountPrice}
+                  size="md"
+                  className="text-[#9b61db]"
+                />
+                <DualPrice
+                  egp={product.price}
+                  size="sm"
+                  className="text-gray-400 line-through"
+                />
               </div>
             ) : (
-              <span className="text-xl font-extrabold text-[#9b61db]">
-                {product.price?.toLocaleString()} ج.م
-              </span>
+              <DualPrice
+                egp={product.price}
+                size="md"
+                className="text-[#9b61db]"
+              />
             )}
           </div>
 
@@ -172,10 +179,6 @@ const ProductsPage = () => {
   } = useContext(ProductContext);
   const [searchTerm, setSearchTerm] = useState("");
 
-  useEffect(() => {
-    getAllProducts();
-  }, []);
-
   // ── Coming Soon gate — flip PRODUCTS_COMING_SOON in src/config/features.js ─
   if (FEATURES.PRODUCTS_COMING_SOON) {
     return (
@@ -194,6 +197,10 @@ const ProductsPage = () => {
       : Array.isArray(rawProducts?.data)
         ? rawProducts.data
         : [];
+
+  useEffect(() => {
+    getAllProducts();
+  }, []);
 
   const filteredData = searchTerm
     ? products.filter(

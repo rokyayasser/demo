@@ -1,7 +1,7 @@
 // src/components/common/DualPrice.jsx
-// Shows EGP price + live USD equivalent
+// Shows price in USD only (converted from EGP using live exchange rate)
 // Usage: <DualPrice egp={service.fees} />
-//        <DualPrice egp={500} size="lg" />
+//        <DualPrice egp={course.price} size="lg" className="text-white" />
 
 import React, { useEffect, useState } from "react";
 import { getUsdToEgpRate, toUsd } from "../../utils/currency.service";
@@ -17,27 +17,16 @@ const DualPrice = ({ egp, size = "md", className = "" }) => {
   if (!numEgp) return <span className={className}>مجاني</span>;
 
   const sizeMap = {
-    sm: { egp: "text-sm", usd: "text-xs" },
-    md: { egp: "text-lg", usd: "text-sm" },
-    lg: { egp: "text-3xl", usd: "text-lg" },
-    xl: { egp: "text-4xl", usd: "text-xl" },
+    sm: "text-sm",
+    md: "text-lg",
+    lg: "text-3xl",
+    xl: "text-4xl",
   };
-  const s = sizeMap[size] || sizeMap.md;
+  const textSize = sizeMap[size] || sizeMap.md;
 
   return (
-    <span className={`inline-flex flex-col items-end gap-0.5 ${className}`}>
-      {/* Primary: EGP */}
-      <span className={`font-extrabold text-[#2d1b5a] ${s.egp}`}>
-        {numEgp.toLocaleString("ar-EG")} جنيه
-      </span>
-      {/* Secondary: USD equivalent */}
-      {rate ? (
-        <span className={`text-gray-400 font-medium ${s.usd}`}>
-          ≈ {toUsd(numEgp, rate)}
-        </span>
-      ) : (
-        <span className={`text-gray-300 ${s.usd}`}>جارٍ التحميل...</span>
-      )}
+    <span className={`font-extrabold ${textSize} ${className}`}>
+      {rate ? toUsd(numEgp, rate) : "..."}
     </span>
   );
 };

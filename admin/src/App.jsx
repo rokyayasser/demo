@@ -20,6 +20,14 @@ import BlockSlots from "./pages/Admin/BlockSlots";
 import AdminCourses from "./pages/Admin/AdminCourses";
 import AdminProducts from "./pages/Admin/AdminProducts";
 import AdminUsers from "./pages/Admin/AdminUsers";
+import AdminBlogs from "./pages/Admin/AdminBlogs";
+import AdminManagement from "./pages/Admin/Adminmanagement";
+import AdminProfile from "./pages/Admin/AdminProfile";
+import ForgotPassword from "./pages/ForgetPassword";
+
+// Public route (outside auth):
+
+// Protected route (inside admin layout):
 
 // ── Doctor Layout & Pages ─────────────────────────────────────────────────────
 import DoctorLayout from "./components/doctor/DoctorLayout";
@@ -28,7 +36,7 @@ import DoctorToday from "./pages/Doctor/DoctorToday";
 import DoctorAppointments from "./pages/Doctor/DoctorAppointments";
 import DoctorAppointmentDetails from "./pages/Doctor/DoctorAppointmentDetails";
 import DoctorStats from "./pages/Doctor/DoctorStats";
-import AdminBlogs from "./pages/Admin/AdminBlogs";
+
 // inside admin routes:
 
 const App = () => {
@@ -53,6 +61,7 @@ const App = () => {
       <AnimatePresence mode="wait">
         <Routes>
           {/* Public login */}
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route
             path="/"
             element={
@@ -81,6 +90,8 @@ const App = () => {
               <Route path="products" element={<AdminProducts />} />
               <Route path="users" element={<AdminUsers />} />
               <Route path="blogs" element={<AdminBlogs />} />
+              <Route path="admins" element={<AdminManagement />} />
+              <Route path="profile" element={<AdminProfile />} />;
             </Route>
           )}
 

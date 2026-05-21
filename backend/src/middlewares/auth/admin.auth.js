@@ -1,55 +1,48 @@
+// middlewares/auth/admin.auth.js
+"use strict";
 const jwt = require("jsonwebtoken");
+const Admin = require("../../models/Admin");
 
-const authAdmin = async (req, res, next) => {
+/**
+ * Middleware: verify admin JWT and confirm admin still exists in DB.
+ * Attach req.userId, req.adminRole to the request.
+ */
+module.exports = async (req, res, next) => {
   try {
     const token =
-      req.headers.token || req.headers.authorization?.replace("Bearer ", "");
+      req.headers["token"] || req.headers["authorization"]?.split(" ")[1];
 
     if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: "الوصول مرفوض - الرجاء تسجيل الدخول",
-      });
+      return res.status(401).json({ success: false, message: "التوكن مطلوب" });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    // Check if it's an admin token
-    if (decoded.email !== process.env.ADMIN_EMAIL || decoded.role !== "admin") {
-      return res.status(403).json({
-        success: false,
-        message: "الوصول مرفوض - ليس لديك صلاحية إدارية",
-      });
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (e) {
+      return res
+        .status(401)
+        .json({ success: false, message: "التوكن غير صالح أو منتهي الصلاحية" });
     }
 
-    req.userId = "admin";
-    req.adminEmail = decoded.email;
-    req.isAdmin = true;
-    req.userRole = "admin";
+    if (!decoded.isAdmin) {
+      return res.status(403).json({ success: false, message: "غير مصرح لك" });
+    }
+
+    // Verify the admin still exists and is active in the DB
+    const admin = await Admin.findById(decoded.userId);
+    if (!admin || !admin.active) {
+      return res
+        .status(401)
+        .json({ success: false, message: "الحساب غير موجود أو معطل" });
+    }
+
+    req.userId = decoded.userId;
+    req.adminRole = admin.role; // "admin" | "superadmin"
+    req.admin = admin;
 
     next();
-  } catch (error) {
-    console.error("❌ Admin auth error:", error.message);
-
-    if (error.name === "TokenExpiredError") {
-      return res.status(401).json({
-        success: false,
-        message: "انتهت صلاحية الجلسة - الرجاء تسجيل الدخول مرة أخرى",
-      });
-    }
-
-    if (error.name === "JsonWebTokenError") {
-      return res.status(401).json({
-        success: false,
-        message: "رمز الدخول غير صالح",
-      });
-    }
-
-    res.status(500).json({
-      success: false,
-      message: "خطأ في المصادقة",
-    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
   }
 };
-
-module.exports = authAdmin;

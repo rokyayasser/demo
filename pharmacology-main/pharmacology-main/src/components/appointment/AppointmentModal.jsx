@@ -20,11 +20,13 @@ import TimeSlots from "./TimeSlots";
 import Calendar from "./Calender";
 import { appointmentApi } from "../../api/appointment.api";
 import { AppContext, extractArabicError } from "../../context/AppContext";
+import { useNavigate } from "react-router-dom";
 import DualPrice from "../common/DualPrice";
 import { getUsdToEgpRate, toUsd } from "../../utils/currency.service";
 
 const AppointmentModal = ({ isOpen, onClose, serviceInfo }) => {
-  const { userData } = useContext(AppContext);
+  const { userData, token } = useContext(AppContext);
+  const navigate = useNavigate();
 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -151,6 +153,14 @@ const AppointmentModal = ({ isOpen, onClose, serviceInfo }) => {
   };
 
   const handleNext = async () => {
+    // Require login before proceeding past step 1
+    if (!token) {
+      toast.error("يرجى تسجيل الدخول أولاً لحجز موعد");
+      onClose();
+      navigate("/login", { state: { from: window.location.pathname } });
+      return;
+    }
+
     if (step === 2) {
       if (!state.selectedDate) {
         toast.error("الرجاء اختيار التاريخ");
@@ -200,6 +210,12 @@ const AppointmentModal = ({ isOpen, onClose, serviceInfo }) => {
   const handleBack = () => setStep((p) => p - 1);
 
   const handleSubmit = async () => {
+    if (!token) {
+      toast.error("يرجى تسجيل الدخول أولاً");
+      onClose();
+      navigate("/login", { state: { from: window.location.pathname } });
+      return;
+    }
     setLoading(true);
     try {
       const fullName = state.formData.name.trim();
@@ -852,17 +868,10 @@ const AppointmentModal = ({ isOpen, onClose, serviceInfo }) => {
                                 المبلغ المطلوب
                               </p>
                               <p className="font-extrabold text-[#2d1b5a] text-xl">
-                                {Number(serviceInfo.fees).toLocaleString(
-                                  "ar-EG",
-                                )}{" "}
-                                جنيه
+                                {usdRate
+                                  ? toUsd(serviceInfo.fees, usdRate)
+                                  : "..."}
                               </p>
-                              {usdRate && (
-                                <p className="text-xs text-gray-400 mt-0.5">
-                                  ≈ {toUsd(serviceInfo.fees, usdRate)} (للمرجعية
-                                  فقط)
-                                </p>
-                              )}
                             </div>
                           )}
 

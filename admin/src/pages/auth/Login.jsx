@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useContext } from "react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import { AdminContext } from "../../context/AdminContext";
 import { DoctorContext } from "../../context/DoctorContext";
@@ -145,6 +145,18 @@ const Login = () => {
               </button>
             </div>
           </div>
+
+          {/* Forgot password */}
+          {role === "admin" && (
+            <div className="flex justify-end">
+              <a
+                href="/forgot-password"
+                className="text-sm text-primary hover:underline"
+              >
+                نسيت كلمة المرور؟
+              </a>
+            </div>
+          )}
 
           {/* Submit */}
           <motion.button

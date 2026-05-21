@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useContext } from "react";
 import { AppContext } from "../../context/AppContext";
 import { toast } from "react-toastify";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Lock, User, Heart, ArrowRight, Eye, EyeOff } from "lucide-react";
 
@@ -611,6 +611,15 @@ const Login = () => {
                       >
                         {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
                       </button>
+                    </div>
+                    {/* Forgot password link */}
+                    <div className="flex justify-end mt-1">
+                      <Link
+                        to="/forgot-password"
+                        className="text-xs text-[#A564D3] hover:text-[#9250BF] hover:underline transition-colors"
+                      >
+                        نسيت كلمة المرور؟
+                      </Link>
                     </div>
                   </div>
                 </motion.div>

@@ -3,10 +3,11 @@ import React, { useState, useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { CalendarDays, Star, Search } from "lucide-react";
+import { FiClock } from "react-icons/fi";
 import { MedicalContext } from "../context/MedicalContext";
 import AnimatedText from "../components/common/AnimatedContent";
-import Card from "../components/common/Card";
 import AppointmentModal from "../components/appointment/AppointmentModal";
+import { getUsdToEgpRate, toUsd } from "../utils/currency.service";
 
 const Consultations = () => {
   const navigate = useNavigate();
@@ -16,9 +17,11 @@ const Consultations = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedService, setSelectedService] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [usdRate, setUsdRate] = useState(null);
 
-  // If the context hasn't loaded yet (e.g. user navigated directly to /consultations),
-  // trigger a fetch. getMedicalServices guards against duplicate calls internally.
+  useEffect(() => {
+    getUsdToEgpRate().then(setUsdRate);
+  }, []);
   useEffect(() => {
     getMedicalServices();
   }, [getMedicalServices]);
@@ -54,7 +57,7 @@ const Consultations = () => {
   const cardHoverVariants = {
     hover: {
       y: -8,
-      boxShadow: "0 20px 40px rgba(0,0,0,0.25)",
+      boxShadow: "0 20px 40px rgba(0,0,0,0.3)",
       transition: { duration: 0.3 },
     },
   };
@@ -102,7 +105,9 @@ const Consultations = () => {
                 placeholder="ابحث عن استشارة..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pr-12 pl-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#1e4b8f] focus:border-transparent text-right bg-gray-50/50 outline-none"
+                className="w-full pr-12 pl-4 py-3 border border-gray-200 rounded-xl
+                  focus:ring-2 focus:ring-[#9b61db] focus:border-transparent
+                  text-right bg-gray-50/50 outline-none"
               />
             </div>
           </AnimatedText>
@@ -115,7 +120,7 @@ const Consultations = () => {
           </div>
         )}
 
-        {/* Cards grid */}
+        {/* Cards grid — same pattern as Blogs */}
         {!loading && (
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
             {filteredData.length === 0 ? (
@@ -132,27 +137,98 @@ const Consultations = () => {
                   key={service._id}
                   variants={cardHoverVariants}
                   whileHover="hover"
-                  className="relative"
                 >
                   <AnimatedText delay={0.3}>
-                    <Card
-                      item={{
-                        image: service.image,
-                        title: service.title_ar || service.title,
-                        desc: service.description,
-                        price: `${service.fees} جنيه`,
-                        meta1: service.duration || "30 دقيقة",
-                        meta2: service.category_ar || service.category,
-                      }}
-                      Meta1Icon={CalendarDays}
-                      Meta2Icon={Star}
-                      buttonText={service.available ? "احجز الآن" : "غير متاح"}
-                      onClick={
-                        service.available
-                          ? () => handleOpenModal(service)
-                          : undefined
+                    <div
+                      className={`bg-white rounded-2xl overflow-hidden border border-white/10
+                        shadow-md hover:shadow-xl transition-all flex flex-col
+                        ${service.available ? "cursor-pointer" : "opacity-70 cursor-not-allowed"}`}
+                      onClick={() =>
+                        service.available && handleOpenModal(service)
                       }
-                    />
+                    >
+                      {/* Image */}
+                      <div className="relative h-48 overflow-hidden bg-gray-100 shrink-0">
+                        {service.image ? (
+                          <img
+                            src={service.image}
+                            alt={service.title_ar || service.title}
+                            className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+                          />
+                        ) : (
+                          <div
+                            className="w-full h-full flex items-center justify-center
+                            bg-gradient-to-br from-[#2d1b5a] to-[#9b61db] text-4xl"
+                          >
+                            🩺
+                          </div>
+                        )}
+                        <span
+                          className="absolute top-3 right-3 bg-[#2d1b5a] text-white
+                          text-xs font-bold px-3 py-1 rounded-full"
+                        >
+                          {service.category_ar || service.category}
+                        </span>
+                        {!service.available && (
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                            <span className="bg-red-500 text-white text-sm font-bold px-4 py-1.5 rounded-full">
+                              غير متاح
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Body */}
+                      <div className="p-5 flex flex-col flex-1 gap-3">
+                        <h3 className="font-bold text-gray-900 text-base leading-snug line-clamp-2">
+                          {service.title_ar || service.title}
+                        </h3>
+                        <p className="text-gray-500 text-sm line-clamp-2 flex-1 leading-relaxed">
+                          {service.description}
+                        </p>
+
+                        {/* Meta row */}
+                        <div
+                          className="flex items-center justify-between text-xs text-gray-400
+                          border-t border-gray-100 pt-3"
+                        >
+                          <div className="flex items-center gap-1">
+                            <FiClock className="w-3.5 h-3.5" />
+                            <span>{service.duration || "30 دقيقة"}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
+                            <span>
+                              {service.category_ar || service.category}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Price in USD */}
+                        <p className="font-extrabold text-lg text-[#2d1b5a]">
+                          {usdRate ? toUsd(service.fees, usdRate) : "..."}
+                        </p>
+
+                        {/* Button */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            service.available && handleOpenModal(service);
+                          }}
+                          disabled={!service.available}
+                          className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl
+                            text-sm font-bold transition-all mt-auto
+                            ${
+                              service.available
+                                ? "bg-gradient-to-r from-[#2d1b5a] to-[#9b61db] text-white hover:shadow-lg hover:shadow-[#9b61db]/30"
+                                : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                            }`}
+                        >
+                          <CalendarDays className="w-4 h-4" />
+                          {service.available ? "احجز الآن" : "غير متاح"}
+                        </button>
+                      </div>
+                    </div>
                   </AnimatedText>
                 </motion.div>
               ))

@@ -1,5 +1,6 @@
 /* eslint-disable no-unused-vars */
 // pages/ProductDetails.jsx  (user side)
+import DualPrice from "../../components/common/DualPrice";
 import React, { useState, useEffect, useContext } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -182,13 +183,9 @@ const ProductDetails = () => {
 
             {/* Price */}
             <div className="flex items-end gap-3">
-              <span className="text-4xl font-extrabold text-[#9b61db]">
-                {price?.toLocaleString()} جنيه
-              </span>
+              <span className="text-4xl font-extrabold text-[#9b61db]"></span>
               {hasDiscount && (
-                <span className="text-xl text-gray-400 line-through pb-1">
-                  {product.price?.toLocaleString()}
-                </span>
+                <span className="text-xl text-gray-400 line-through pb-1"></span>
               )}
             </div>
 
