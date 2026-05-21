@@ -23,7 +23,7 @@ try {
 // BlockedSlot model — loaded at module level so all route handlers can use it
 let BlockedSlotModel;
 try {
-  BlockedSlotModel = require("../models/Blockedslot");
+  BlockedSlotModel = require("../../models/Blockedslot");
 } catch (e) {
   console.warn(
     "admin.routes: BlockedSlot not found at require time:",
@@ -45,11 +45,36 @@ try {
   cloudinary = require("../../config/cloudinary");
 } catch (e) {}
 
-// ── Public: login ─────────────────────────────────────────────────────────────
+// ── Public: login + forgot/reset password ─────────────────────────────────────
 router.post("/login", adminAuth.login);
+router.post("/forgot-password", adminAuth.forgotPassword);
+router.post("/verify-otp", adminAuth.verifyOtp);
+router.post("/reset-password", adminAuth.resetPassword);
 
 // ── All routes below require admin JWT ────────────────────────────────────────
 router.use(authAdmin);
+
+// ── Admin profile ──────────────────────────────────────────────────────────────
+router.get("/me", adminAuth.getMe);
+router.put("/me", adminAuth.updateProfile);
+router.put("/me/password", adminAuth.changeOwnPassword);
+
+// ── Admin management (superadmin only) ────────────────────────────────────────
+// Middleware: block non-superadmin access
+const superadminOnly = (req, res, next) => {
+  if (req.adminRole !== "superadmin") {
+    return res.status(403).json({
+      success: false,
+      message: "هذه العملية متاحة للسوبر أدمن فقط",
+    });
+  }
+  next();
+};
+
+router.get("/admins", superadminOnly, adminAuth.list);
+router.post("/admins", superadminOnly, adminAuth.create);
+router.delete("/admins/:id", superadminOnly, adminAuth.remove);
+router.put("/admins/:id/password", superadminOnly, adminAuth.changePassword);
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 router.get("/dashboard/stats", admin.getDashboardStats);

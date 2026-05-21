@@ -13,6 +13,11 @@ const {
   checkUploadErrors,
 } = require("../../middlewares/upload/multer.config");
 
+// Forgot password — public routes
+router.post("/forgot-password", userAuthController.forgotPassword);
+router.post("/verify-otp", userAuthController.verifyOtp);
+router.post("/reset-password", userAuthController.resetPassword);
+
 // Authentication routes
 router.post("/register", userAuthController.register);
 router.post("/login", userAuthController.login);
@@ -24,19 +29,19 @@ router.post(
   authUser,
   upload.single("image"),
   checkUploadErrors,
-  userProfileController.updateProfile
+  userProfileController.updateProfile,
 );
 
 // Appointment routes (protected)
 router.get(
   "/appointments",
   authUser,
-  userAppointmentsController.getUserAppointments
+  userAppointmentsController.getUserAppointments,
 );
 router.post(
   "/appointments/cancel",
   authUser,
-  userAppointmentsController.cancelAppointment
+  userAppointmentsController.cancelAppointment,
 );
 
 module.exports = router;

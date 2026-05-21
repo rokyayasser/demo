@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-vars */
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import { NavLink } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -14,7 +14,10 @@ import {
   ChevronLeft,
   Package,
   FileText,
+  Shield,
+  User,
 } from "lucide-react";
+import { AdminContext } from "../../context/AdminContext";
 
 const menuSections = [
   {
@@ -31,6 +34,12 @@ const menuSections = [
         icon: Users,
         text: "المستخدمون",
         color: "from-slate-500 to-slate-600",
+      },
+      {
+        to: "/admin/profile",
+        icon: User,
+        text: "ملفي الشخصي",
+        color: "from-pink-500 to-rose-600",
       },
     ],
   },
@@ -82,8 +91,28 @@ const menuSections = [
   },
 ];
 
+// Superadmin-only section
+const superadminSection = {
+  label: "الإدارة",
+  items: [
+    {
+      to: "/admin/admins",
+      icon: Shield,
+      text: "المسؤولون",
+      color: "from-rose-500 to-pink-600",
+    },
+  ],
+};
+
 const AdminSidebar = () => {
   const [isExpanded, setIsExpanded] = useState(true);
+  const { adminData } = useContext(AdminContext);
+  const isSuperAdmin = adminData?.role === "superadmin";
+
+  // Show superadmin section only for superadmins
+  const sections = isSuperAdmin
+    ? [...menuSections, superadminSection]
+    : menuSections;
 
   return (
     <motion.div
@@ -94,7 +123,7 @@ const AdminSidebar = () => {
       }`}
     >
       <div className="flex-1 py-4 px-3 overflow-y-auto">
-        {menuSections.map((section) => (
+        {sections.map((section) => (
           <div key={section.label} className="mb-4">
             {isExpanded && (
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-4 mb-2">

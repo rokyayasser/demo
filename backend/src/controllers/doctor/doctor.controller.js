@@ -4,6 +4,24 @@ const BaseController = require("../BaseController");
 const Appointment = require("../../models/Appointment");
 const User = require("../../models/User");
 
+// Service must be required here so Mongoose registers the schema
+// before any .populate("serviceId") call runs.
+// Without this Mongoose throws: "Schema hasn't been registered for model Service"
+let Service;
+try {
+  Service = require("../../models/Service");
+} catch (e) {
+  try {
+    Service = require("../../models/service.model");
+  } catch (e2) {
+    try {
+      Service = require("../../models/MedicalService");
+    } catch (e3) {
+      console.warn("Service model not found — check your models folder name");
+    }
+  }
+}
+
 let sendAppointmentStatusEmail;
 try {
   ({ sendAppointmentStatusEmail } = require("../../services/email.service"));

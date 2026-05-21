@@ -6,7 +6,7 @@ const c = require("../../controllers/course/course.controller");
 const authAdmin = require("../../middlewares/auth/admin.auth");
 const authUser = require("../../middlewares/auth/user.auth");
 const { upload } = require("../../middlewares/upload/multer.config");
-const CourseEnrollment = require("../../models/CourseEnrollment");
+const CourseEnrollment = require("../../models/Courseenrollment");
 const Course = require("../../models/Course");
 
 // ─── All static/named paths BEFORE /:id ──────────────────────────────────────
@@ -184,7 +184,7 @@ router.post("/confirm-payment", async (req, res) => {
         .status(400)
         .json({ success: false, message: "merchantOrderId مطلوب" });
 
-    const CourseEnrollment = require("../../models/CourseEnrollment");
+    const CourseEnrollment = require("../../models/Courseenrollment");
     const Course = require("../../models/Course");
 
     // merchantOrderId format from Paymob redirect:

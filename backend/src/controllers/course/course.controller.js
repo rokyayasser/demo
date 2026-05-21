@@ -2,7 +2,7 @@
 "use strict";
 const BaseController = require("../BaseController");
 const Course = require("../../models/Course");
-const CourseEnrollment = require("../../models/CourseEnrollment");
+const CourseEnrollment = require("../../models/Courseenrollment");
 const User = require("../../models/User");
 
 let cloudinary,

@@ -7,6 +7,16 @@ const {
 } = require("../../middlewares/validation/appointment.validation");
 const cloudinary = require("../../config/cloudinary");
 
+// Paymob loaded safely — missing config never crashes the controller
+let PaymobService = null;
+try {
+  PaymobService = require("../../config/paymob");
+  if (typeof PaymobService === "function") PaymobService = new PaymobService();
+  console.log("✅ Paymob loaded in appointment controller");
+} catch (e) {
+  console.warn("Paymob not loaded in appointment controller:", e.message);
+}
+
 // ── Fix 1: correct path ──────────────────────────────────────────────────────
 let BlockedSlot;
 try {
@@ -222,8 +232,18 @@ class SharedAppointmentController extends BaseController {
   // ── Fix 4: getBookedSlots uses dateISO field + standalone normalizeDate ───
   async getBookedSlots(req, res) {
     try {
+      const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000);
+
+      // Only treat a slot as booked if payment is confirmed or in progress.
+      // Stale pending+unpaid (older than 30 min) are ignored so they
+      // don't block the calendar after an abandoned payment.
       const bookedAppointments = await Appointment.find({
-        status: { $in: ["pending", "confirmed", "completed"] },
+        $or: [
+          { paid: true },
+          { status: "confirmed" },
+          { status: "completed" },
+          { status: "pending", paid: false, createdAt: { $gt: thirtyMinAgo } },
+        ],
       })
         .select("date dateISO time")
         .lean();
@@ -300,15 +320,46 @@ class SharedAppointmentController extends BaseController {
       if (!service.available)
         return this.conflict(res, "هذه الخدمة غير متاحة حالياً");
 
-      // Check existing appointment
+      // ── Check existing appointment ─────────────────────────────────────────
+      // Only block the slot if there is a PAID or CONFIRMED appointment.
+      // Pending + unpaid appointments don't hold the slot — otherwise a user
+      // who starts payment and abandons it blocks the slot forever.
+      // Stale pending appointments (older than 30 min) are also ignored.
+      const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000);
       const existingAppointment = await Appointment.findOne({
         serviceId,
         dateISO,
         time,
         status: { $nin: ["cancelled"] },
+        $or: [
+          { paid: true }, // paid → slot is taken
+          { status: "confirmed" }, // confirmed by doctor → taken
+          { status: "completed" }, // completed → taken
+          {
+            // pending within last 30 min → temporarily hold
+            status: "pending",
+            paid: false,
+            createdAt: { $gt: thirtyMinAgo },
+          },
+        ],
       });
       if (existingAppointment)
         return this.conflict(res, "هذا الموعد محجوز بالفعل");
+
+      // ── Clean up stale pending unpaid appointments for this slot ──────────
+      // If there's a pending+unpaid appointment older than 30 min, cancel it
+      // so it doesn't appear in the doctor's list as a ghost booking.
+      await Appointment.updateMany(
+        {
+          serviceId,
+          dateISO,
+          time,
+          status: "pending",
+          paid: false,
+          createdAt: { $lt: thirtyMinAgo },
+        },
+        { $set: { status: "cancelled" } },
+      );
 
       // ── Fix 5: check BlockedSlot before booking ───────────────────────────
       if (BlockedSlot) {
@@ -323,25 +374,43 @@ class SharedAppointmentController extends BaseController {
       if (service.slots_booked?.[date]?.includes(time))
         return this.conflict(res, "هذا الوقت غير متاح للحجز");
 
-      // File uploads
-      let medicationsFileUrl = null,
-        testsFileUrl = null;
-      if (req.files) {
-        if (req.files.medicationsFile) {
-          const r = await cloudinary.uploadFile(
-            req.files.medicationsFile[0].buffer,
-            "appointments/medications",
-            req.files.medicationsFile[0].originalname,
-          );
-          medicationsFileUrl = r.secure_url;
+      // ── File uploads ─────────────────────────────────────────────────────────
+      let medicationsFileUrl = null;
+      let testsFileUrls = []; // supports multiple test files
+
+      if (req.files && cloudinary) {
+        // Single medications file — use uploadImage (the method that exists)
+        if (req.files.medicationsFile?.[0]) {
+          try {
+            const f = req.files.medicationsFile[0];
+            const r = await cloudinary.uploadImage(
+              f.buffer,
+              "appointments/medications",
+            );
+            if (r?.secure_url) medicationsFileUrl = r.secure_url;
+          } catch (e) {
+            console.error("medications upload error:", e.message);
+          }
         }
-        if (req.files.testsFile) {
-          const r = await cloudinary.uploadFile(
-            req.files.testsFile[0].buffer,
-            "appointments/tests",
-            req.files.testsFile[0].originalname,
-          );
-          testsFileUrl = r.secure_url;
+
+        // Multiple test files — only push entries where upload succeeded
+        if (req.files.testsFile?.length) {
+          for (const f of req.files.testsFile) {
+            try {
+              const r = await cloudinary.uploadImage(
+                f.buffer,
+                "appointments/tests",
+              );
+              if (r?.secure_url) {
+                testsFileUrls.push({
+                  url: r.secure_url,
+                  name: f.originalname || "test-file",
+                });
+              }
+            } catch (e) {
+              console.error("test file upload error:", e.message);
+            }
+          }
         }
       }
 
@@ -364,11 +433,12 @@ class SharedAppointmentController extends BaseController {
         weight,
         age,
         chronicDiseases,
-        currentMedications: currentMedications || "",
+        currentMedications:
+          req.body.currentMedications || currentMedications || "",
         currentHealthStatus,
         consultationGoal,
         medicationsFile: medicationsFileUrl,
-        testsFile: testsFileUrl,
+        testsFiles: testsFileUrls.filter((f) => f.url), // only keep successful uploads
         status: "pending",
         paid: false,
       });
@@ -377,6 +447,64 @@ class SharedAppointmentController extends BaseController {
       service.meta.bookings = (service.meta.bookings || 0) + 1;
       await service.save();
 
+      // ── Initiate Paymob payment if service has fees ─────────────────────────
+      if (Number(amount) > 0 && PaymobService) {
+        try {
+          // Always charge in EGP — the EGP amount is stored in service.fees
+          // USD shown on the frontend is display-only (live exchange rate)
+          // To enable real USD payments, set PAYMOB_USD_INTEGRATION_ID in env
+          const egpAmount = Number(service.fees); // always use original EGP price
+          const fullName = `${firstName} ${lastName}`.trim();
+
+          const paymobData = await PaymobService.initiatePayment(
+            appointment._id.toString(),
+            egpAmount,
+            { name: fullName, email, phone },
+            [],
+            "EGP", // always EGP until USD integration is configured
+          );
+
+          return this.success(
+            res,
+            {
+              appointment,
+              appointmentId: appointment._id,
+              paymentUrl: paymobData.paymentUrl,
+              iframeUrl: paymobData.iframeUrl,
+              currency: "EGP",
+              requiresPayment: true,
+            },
+            "تم حجز الموعد — أكمل الدفع",
+          );
+        } catch (paymobErr) {
+          console.error(
+            "Paymob error — deleting appointment:",
+            paymobErr.message,
+          );
+
+          // DELETE the appointment so the slot is freed.
+          // The user should not be booked without completing payment.
+          try {
+            await Appointment.findByIdAndDelete(appointment._id);
+            // Also undo the bookings counter
+            service.meta.bookings = Math.max(
+              0,
+              (service.meta.bookings || 1) - 1,
+            );
+            await service.save();
+          } catch (cleanupErr) {
+            console.error("Cleanup error:", cleanupErr.message);
+          }
+
+          return this.error(
+            res,
+            "فشل في إنشاء رابط الدفع — لم يتم تأكيد الحجز. يرجى المحاولة مرة أخرى أو التواصل معنا.",
+            400,
+          );
+        }
+      }
+
+      // Free service (no fees) — confirm directly without payment
       return this.success(
         res,
         { appointment, appointmentId: appointment._id },

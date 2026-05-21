@@ -63,6 +63,8 @@ const userSchema = new mongoose.Schema(
       enum: ["user", "admin", "doctor"],
       default: "user",
     },
+    resetOtp: { type: String, select: false },
+    resetOtpExpires: { type: Date, select: false },
   },
   {
     timestamps: true,

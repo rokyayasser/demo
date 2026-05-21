@@ -336,6 +336,7 @@ const sendOrderConfirmationEmail = async ({
 };
 
 module.exports = {
+  transporter,
   sendCourseAccessEmail,
   sendCertificateEmail,
   sendAppointmentStatusEmail,

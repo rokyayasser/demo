@@ -36,6 +36,8 @@ const appointmentValidation = {
       "string.empty": "الهدف من الاستشارة مطلوب",
     }),
 
+    currency: Joi.string().valid("EGP", "USD").optional().default("EGP"),
+    currentMedications: Joi.string().allow("").optional(),
     // User information
     firstName: Joi.string().required().messages({
       "string.empty": "الاسم الأول مطلوب",

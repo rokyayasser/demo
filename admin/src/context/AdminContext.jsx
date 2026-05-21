@@ -9,6 +9,13 @@ const AdminContextProvider = ({ children }) => {
   const [aToken, setAToken] = useState(
     () => localStorage.getItem("aToken") || "",
   );
+  const [adminData, setAdminData] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("adminData") || "null");
+    } catch {
+      return null;
+    }
+  });
 
   // ── Data states ────────────────────────────────────────────────────────────
   const [services, setServices] = useState([]);
@@ -17,7 +24,7 @@ const AdminContextProvider = ({ children }) => {
   const [dashStats, setDashStats] = useState(null);
   const [courses, setCourses] = useState([]);
   const [products, setProducts] = useState([]);
-
+  const [blogs, setBlogs] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -35,6 +42,10 @@ const AdminContextProvider = ({ children }) => {
       if (data.success) {
         localStorage.setItem("aToken", data.data.token);
         setAToken(data.data.token);
+        if (data.data.admin) {
+          localStorage.setItem("adminData", JSON.stringify(data.data.admin));
+          setAdminData(data.data.admin);
+        }
         toast.success("تم تسجيل الدخول كمدير");
         return true;
       }
@@ -50,6 +61,8 @@ const AdminContextProvider = ({ children }) => {
 
   const adminLogout = useCallback(() => {
     localStorage.removeItem("aToken");
+    localStorage.removeItem("adminData");
+    setAdminData(null);
     setAToken("");
     setServices([]);
     setAppointments([]);
@@ -564,6 +577,7 @@ const AdminContextProvider = ({ children }) => {
         aToken,
         backendUrl,
         loading,
+        adminData,
         // Auth
         adminLogin,
         adminLogout,
